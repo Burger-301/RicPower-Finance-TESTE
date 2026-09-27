@@ -9,7 +9,7 @@ const firebaseConfig = {
   appId: "1:632169254200:web:776e49224d4f61bc2e05cd"
 };
 
-// Inicialização segura do Firebase Realtime Database
+// Inicialização segura do Firebase
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
     try {
         firebase.initializeApp(firebaseConfig);
@@ -34,14 +34,12 @@ function parseDateIso(dateStr) {
     if (s.includes(' ')) s = s.split(' ')[0];
     if (s.includes('T')) s = s.split('T')[0];
     
-    // Formato DD/MM/YYYY
     if (s.includes('/')) {
         let parts = s.split('/');
         if (parts.length === 3) {
             return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
         }
     }
-    // Formato YYYY-MM-DD
     if (s.includes('-')) {
         let parts = s.split('-');
         if (parts.length === 3) {
@@ -86,7 +84,6 @@ let dataFimCustom = '';
 let chartFluxoInstance = null;
 let chartCategoriaInstance = null;
 
-// CÁLCULO DINÂMICO DE STATUS
 function getStatusEfetivo(item) {
     if (String(item.status).toUpperCase() === 'PAGO') return 'PAGO';
     const hoje = new Date();
@@ -96,7 +93,6 @@ function getStatusEfetivo(item) {
     return 'PENDENTE';
 }
 
-// ARMAZENAMENTO E NUVEM FIREBASE
 function salvarDadosLocal(skipNuvem = false) {
     contasPagar = garantirArray(contasPagar);
     contasReceber = garantirArray(contasReceber);
@@ -165,9 +161,13 @@ function formatarDataBR(dataIso) {
     return `${day}/${month}/${year}`;
 }
 
-/* AUTENTICAÇÃO E SESSÃO */
+/* AUTENTICAÇÃO DIRETA */
 function realizarLogin(event) {
-    if (event) event.preventDefault();
+    if (event) {
+        event.preventDefault();
+        if (event.stopPropagation) event.stopPropagation();
+    }
+
     const emailEl = document.getElementById('loginEmail');
     const senhaEl = document.getElementById('loginSenha');
 
@@ -176,10 +176,21 @@ function realizarLogin(event) {
 
     if (email === 'admin@richard.com' && senha === 'admin123') {
         localStorage.setItem('ricpower_logged_user', email);
-        iniciarAplicacao();
+        
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) {
+            loginScreen.style.display = 'none';
+        }
+
+        try {
+            iniciarAplicacao();
+        } catch (e) {
+            console.error(e);
+        }
     } else {
-        alert('E-mail ou senha incorretos!');
+        alert('E-mail ou senha incorretos! Credenciais de acesso: admin@richard.com / admin123');
     }
+    return false;
 }
 
 function fazerLogout() {
@@ -190,10 +201,12 @@ function fazerLogout() {
 
 function verificarSessao() {
     const user = localStorage.getItem('ricpower_logged_user');
+    const loginScreen = document.getElementById('login-screen');
+
     if (user) {
+        if (loginScreen) loginScreen.style.display = 'none';
         iniciarAplicacao();
     } else {
-        const loginScreen = document.getElementById('login-screen');
         if (loginScreen) loginScreen.style.display = 'flex';
     }
 }
@@ -210,7 +223,6 @@ function iniciarAplicacao() {
     }
 }
 
-/* NAVEGAÇÃO DE ABAS & SIDEBAR MOBILE */
 function trocarAba(abaId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
@@ -245,7 +257,6 @@ function toggleSidebar() {
     if (overlay) overlay.classList.toggle('active');
 }
 
-/* FILTROS DE PERÍODO GLOBAL */
 function toggleDateFilter() {
     const dropdown = document.getElementById('dateFilterDropdown');
     if (dropdown) dropdown.classList.toggle('show');
@@ -327,7 +338,6 @@ function filtrarPorPeriodo(lista, campoData = 'vencimento') {
     });
 }
 
-/* RENDERIZAÇÃO GERAL E DASHBOARD */
 function renderizarTudo() {
     renderizarKPIs();
     renderizarGraficos();
@@ -422,7 +432,6 @@ function renderizarGraficos() {
     }
 }
 
-/* TABELA CONTAS A PAGAR */
 function renderizarContasPagar() {
     const tbody = document.getElementById('tbodyPagar');
     if (!tbody) return;
@@ -469,9 +478,7 @@ function renderizarContasPagar() {
     }).join('');
 }
 
-function filtrarTabelaPagar() {
-    renderizarContasPagar();
-}
+function filtrarTabelaPagar() { renderizarContasPagar(); }
 
 function abrirModalPagar(id = null) {
     const form = document.getElementById('modalPagar');
@@ -543,7 +550,6 @@ function excluirPagar(id) {
     }
 }
 
-/* TABELA CONTAS A RECEBER */
 function renderizarContasReceber() {
     const tbody = document.getElementById('tbodyReceber');
     if (!tbody) return;
@@ -590,9 +596,7 @@ function renderizarContasReceber() {
     }).join('');
 }
 
-function filtrarTabelaReceber() {
-    renderizarContasReceber();
-}
+function filtrarTabelaReceber() { renderizarContasReceber(); }
 
 function abrirModalReceber(id = null) {
     const form = document.getElementById('modalReceber');
@@ -664,7 +668,6 @@ function excluirReceber(id) {
     }
 }
 
-/* TABELA ESTOQUE */
 function renderizarEstoque() {
     const tbody = document.getElementById('tbodyEstoque');
     if (!tbody) return;
@@ -702,9 +705,7 @@ function renderizarEstoque() {
     }).join('');
 }
 
-function filtrarTabelaEstoque() {
-    renderizarEstoque();
-}
+function filtrarTabelaEstoque() { renderizarEstoque(); }
 
 function abrirModalEstoque(id = null) {
     const form = document.getElementById('modalEstoque');
@@ -762,7 +763,6 @@ function excluirEstoque(id) {
     }
 }
 
-/* DRE DEMONSTRATIVO */
 function renderizarDRE() {
     const container = document.getElementById('dreContainer');
     if (!container) return;
@@ -806,11 +806,14 @@ function handleExcelUpload(event) {
             }
 
             if (novosPagar.length > 0 || novosReceber.length > 0) {
-                contasPagar = novosPagar;
-                contasReceber = novosReceber;
+                // Junta os lançamentos atuais com os novos lançamentos da planilha
+                contasPagar = [...garantirArray(contasPagar), ...novosPagar];
+                contasReceber = [...garantirArray(contasReceber), ...novosReceber];
+
                 salvarDadosLocal();
                 renderizarTudo();
-                alert(`Planilha convertida e importada com sucesso!\n\n- Contas a Pagar: ${novosPagar.length}\n- Contas a Receber: ${novosReceber.length}`);
+
+                alert(`Novos registros adicionados com sucesso!\n\n- Contas a Pagar adicionadas: ${novosPagar.length}\n- Contas a Receber adicionadas: ${novosReceber.length}`);
             } else {
                 alert('Não foram encontrados lançamentos válidos na planilha.');
             }
@@ -818,6 +821,8 @@ function handleExcelUpload(event) {
             console.error(err);
             alert('Erro ao processar o arquivo Excel.');
         }
+
+        event.target.value = '';
     };
     reader.readAsArrayBuffer(file);
 }
@@ -884,13 +889,11 @@ function exportDataJSON() {
     a.click();
 }
 
-/* MODAIS GENERAL */
 function fecharModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
 }
 
-// FECHAR MODAIS E DROPDOWN AO CLICAR FORA
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
@@ -901,7 +904,6 @@ window.onclick = function(event) {
     }
 };
 
-// ARRANQUE DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
     verificarSessao();
 });
