@@ -9,9 +9,13 @@ const firebaseConfig = {
   appId: "1:632169254200:web:776e49224d4f61bc2e05cd"
 };
 
-// Inicialização do Firebase Realtime Database
+// Inicialização segura do Firebase Realtime Database
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
+    try {
+        firebase.initializeApp(firebaseConfig);
+    } catch (err) {
+        console.warn("Erro ao inicializar Firebase:", err);
+    }
 }
 const db = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
 
@@ -164,8 +168,11 @@ function formatarDataBR(dataIso) {
 /* AUTENTICAÇÃO E SESSÃO */
 function realizarLogin(event) {
     if (event) event.preventDefault();
-    const email = document.getElementById('loginEmail').value.trim();
-    const senha = document.getElementById('loginSenha').value.trim();
+    const emailEl = document.getElementById('loginEmail');
+    const senhaEl = document.getElementById('loginSenha');
+
+    const email = emailEl ? emailEl.value.trim() : '';
+    const senha = senhaEl ? senhaEl.value.trim() : '';
 
     if (email === 'admin@richard.com' && senha === 'admin123') {
         localStorage.setItem('ricpower_logged_user', email);
@@ -177,7 +184,8 @@ function realizarLogin(event) {
 
 function fazerLogout() {
     localStorage.removeItem('ricpower_logged_user');
-    document.getElementById('login-screen').style.display = 'flex';
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.style.display = 'flex';
 }
 
 function verificarSessao() {
@@ -185,14 +193,21 @@ function verificarSessao() {
     if (user) {
         iniciarAplicacao();
     } else {
-        document.getElementById('login-screen').style.display = 'flex';
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.style.display = 'flex';
     }
 }
 
 function iniciarAplicacao() {
-    document.getElementById('login-screen').style.display = 'none';
-    escutarSincronizacaoNuvem();
-    renderizarTudo();
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.style.display = 'none';
+
+    try {
+        escutarSincronizacaoNuvem();
+        renderizarTudo();
+    } catch (err) {
+        console.error("Erro na inicialização dos dados:", err);
+    }
 }
 
 /* NAVEGAÇÃO DE ABAS & SIDEBAR MOBILE */
@@ -215,7 +230,6 @@ function trocarAba(abaId, element) {
     };
     document.getElementById('pageTitle').innerText = titulos[abaId] || 'RICPOWER';
 
-    // Fechar menu no telemóvel ao trocar de aba
     const sidebar = document.getElementById('sidebar');
     const overlay = document.querySelector('.sidebar-overlay');
     if (sidebar) sidebar.classList.remove('active');
