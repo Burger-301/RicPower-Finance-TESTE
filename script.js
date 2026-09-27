@@ -9,11 +9,11 @@ const firebaseConfig = {
   appId: "1:632169254200:web:776e49224d4f61bc2e05cd"
 };
 
-// Inicialização da base de dados Firebase
+// Inicialização do Firebase Realtime Database
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
-const db = (typeof firebase !== 'undefined') ? firebase.database() : null;
+const db = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
 
 // CONVERTE OBJETOS FIREBASE OU DADOS LOCAIS EM ARRAYS VÁLIDOS
 function garantirArray(val) {
@@ -23,7 +23,7 @@ function garantirArray(val) {
     return [];
 }
 
-// PARSER UNIVERSAL DE DATA (EVITA 'INVALID DATE' EM QUALQUER FORMATO)
+// PARSER UNIVERSAL DE DATA
 function parseDateIso(dateStr) {
     if (!dateStr) return null;
     let s = String(dateStr).trim();
@@ -60,27 +60,27 @@ const mesAtual = getMesAtualStr();
 
 // DADOS LOCAIS BASE
 let contasPagar = garantirArray(JSON.parse(localStorage.getItem('ricpower_pagar'))) || [
-    { id: '1', vencimento: `${mesAtual}-15`, fornecedor: 'RGE Energia', descricao: 'Conta de Energia Elétrica', valor: 1000.00, categoria: 'Custos Fixos', status: 'PAGO', dataPagamento: `${mesAtual}-15`, tipoPagamento: 'PIX' },
-    { id: '2', vencimento: `${mesAtual}-21`, fornecedor: 'AliExpress', descricao: 'Lote de Placas e Chips', valor: 850.00, categoria: 'Peças Novas', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'PIX' },
-    { id: '3', vencimento: `${mesAtual}-28`, fornecedor: 'Imobiliária', descricao: 'Aluguel do Galpão', valor: 1270.00, categoria: 'Custos Fixos', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'Transferência' }
+    { id: '1', vencimento: `${mesAtual}-15`, pessoa: 'RGE Energia', descricao: 'Conta de Energia Elétrica', valor: 1000.00, centro: 'CUSTOS FIXOS', status: 'PAGO', dataPagamento: `${mesAtual}-15` },
+    { id: '2', vencimento: `${mesAtual}-21`, pessoa: 'AliExpress', descricao: 'Lote de Placas e Chips', valor: 850.00, centro: 'PEÇAS & EQUIPAMENTOS', status: 'PENDENTE', dataPagamento: '' }
 ];
 
 let contasReceber = garantirArray(JSON.parse(localStorage.getItem('ricpower_receber'))) || [
-    { id: '1', vencimento: `${mesAtual}-18`, cliente: 'Gabi', descricao: 'Reparo de GPU RTX 3080', valor: 450.00, categoria: 'Reparos', status: 'PAGO', dataPagamento: `${mesAtual}-18`, tipoPagamento: 'PIX' },
-    { id: '2', vencimento: `${mesAtual}-20`, cliente: 'Yuri', descricao: 'Troca de Telas e Peças', valor: 280.00, categoria: 'Peças Novas', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'PIX' }
+    { id: '1', vencimento: `${mesAtual}-18`, pessoa: 'Gabi', descricao: 'Reparo de GPU RTX 3080', valor: 450.00, centro: 'SERVIÇOS', status: 'PAGO', dataPagamento: `${mesAtual}-18` },
+    { id: '2', vencimento: `${mesAtual}-20`, pessoa: 'Yuri', descricao: 'Troca de Telas e Peças', valor: 280.00, centro: 'COMERCIAL', status: 'PENDENTE', dataPagamento: '' }
 ];
 
 let estoque = garantirArray(JSON.parse(localStorage.getItem('ricpower_estoque'))) || [
-    { id: '1', sku: 'PEC-001', nome: 'Chip Mosfet VRM 40V', categoria: 'Componentes', qtd: 14, qtdMin: 10, precoCusto: 12.50, precoVenda: 45.00 },
-    { id: '2', sku: 'PEC-002', nome: 'Pasta Térmica Alta Condutividade', categoria: 'Insumos', qtd: 3, qtdMin: 5, precoCusto: 35.00, precoVenda: 90.00 }
+    { id: '1', sku: 'PEC-001', nome: 'Chip Mosfet VRM 40V', qtd: 14, custo: 12.50, venda: 45.00 },
+    { id: '2', sku: 'PEC-002', nome: 'Pasta Térmica Alta Condutividade', qtd: 3, custo: 35.00, venda: 90.00 }
 ];
 
-// INICIA EM 'Todos os Registros' PARA EXIBIR TUDO
-let filtroDataAtivo = 'Todos os Registros';
+// VARIÁVEIS DE FILTRO E GRÁFICOS
+let filtroDataAtivo = 'todos';
+let filtroTextoAtivo = 'Todos os Registros';
 let dataInicioCustom = '';
 let dataFimCustom = '';
-let fluxoCaixaChartInstance = null;
-let centroCustoChartInstance = null;
+let chartFluxoInstance = null;
+let chartCategoriaInstance = null;
 
 // CÁLCULO DINÂMICO DE STATUS
 function getStatusEfetivo(item) {
@@ -92,7 +92,7 @@ function getStatusEfetivo(item) {
     return 'PENDENTE';
 }
 
-// ARMAZENAMENTO E NUVEM
+// ARMAZENAMENTO E NUVEM FIREBASE
 function salvarDadosLocal(skipNuvem = false) {
     contasPagar = garantirArray(contasPagar);
     contasReceber = garantirArray(contasReceber);
@@ -112,6 +112,7 @@ function salvarDadosLocal(skipNuvem = false) {
 }
 
 function escutarSincronizacaoNuvem() {
+    const badge = document.getElementById('syncBadge');
     if (db) {
         db.ref('ricpower_dados').on('value', (snapshot) => {
             const dadosNuvem = snapshot.val();
@@ -125,8 +126,25 @@ function escutarSincronizacaoNuvem() {
             } else {
                 salvarDadosLocal();
             }
+            if (badge) {
+                badge.className = 'sync-badge online';
+                badge.innerHTML = '<i class="fas fa-wifi"></i> Nuvem Sincronizada';
+            }
+        }, (err) => {
+            if (badge) {
+                badge.className = 'sync-badge offline';
+                badge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Modo Offline';
+            }
         });
+    } else if (badge) {
+        badge.className = 'sync-badge offline';
+        badge.innerHTML = '<i class="fas fa-database"></i> Modo Local';
     }
+}
+
+function carregarDados() {
+    escutarSincronizacaoNuvem();
+    renderizarTudo();
 }
 
 function formatarMoeda(valor) {
@@ -148,28 +166,18 @@ function realizarLogin(event) {
     if (event) event.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();
     const senha = document.getElementById('loginSenha').value.trim();
-    const alertBox = document.getElementById('loginAlert');
 
     if (email === 'admin@richard.com' && senha === 'admin123') {
         localStorage.setItem('ricpower_logged_user', email);
-        alertBox.style.display = 'none';
         iniciarAplicacao();
     } else {
-        alertBox.className = 'login-alert error';
-        alertBox.innerText = 'E-mail ou senha incorretos!';
-        alertBox.style.display = 'block';
+        alert('E-mail ou senha incorretos!');
     }
 }
 
-function preencherLoginDemo() {
-    document.getElementById('loginEmail').value = 'admin@richard.com';
-    document.getElementById('loginSenha').value = 'admin123';
-}
-
-function logout() {
+function fazerLogout() {
     localStorage.removeItem('ricpower_logged_user');
-    document.getElementById('appScreen').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('login-screen').style.display = 'flex';
 }
 
 function verificarSessao() {
@@ -177,92 +185,102 @@ function verificarSessao() {
     if (user) {
         iniciarAplicacao();
     } else {
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('appScreen').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'flex';
     }
 }
 
 function iniciarAplicacao() {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'flex';
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('ricpower_logged_user') || 'admin@richard.com';
+    document.getElementById('login-screen').style.display = 'none';
     escutarSincronizacaoNuvem();
     renderizarTudo();
 }
 
-/* NAVEGAÇÃO DE ABAS */
-function showTab(tabId, navElement) {
+/* NAVEGAÇÃO DE ABAS & SIDEBAR MOBILE */
+function trocarAba(abaId, element) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
 
-    const selectedTab = document.getElementById(`tab-${tabId}`);
-    if (selectedTab) selectedTab.classList.add('active');
+    const tabSelecionada = document.getElementById(`tab-${abaId}`);
+    if (tabSelecionada) tabSelecionada.classList.add('active');
 
-    if (navElement) {
-        navElement.classList.add('active');
-    }
+    if (element) element.classList.add('active');
 
-    const titles = {
+    const titulos = {
         'dashboard': 'Visão Geral Financeira',
-        'pagar': 'Contas a Pagar (Saídas)',
-        'receber': 'Contas a Receber (Entradas)',
+        'contas-pagar': 'Contas a Pagar (Saídas)',
+        'contas-receber': 'Contas a Receber (Entradas)',
         'estoque': 'Controle de Estoque (Peças)',
         'dre': 'Demonstrativo do Resultado do Exercício (DRE)',
-        'extensao': 'Extensão Chrome & Integrações'
+        'extensao': 'Backup & Integrações'
     };
-    document.getElementById('pageTitle').innerText = titles[tabId] || 'RICPOWER';
+    document.getElementById('pageTitle').innerText = titulos[abaId] || 'RICPOWER';
+
+    // Fechar menu no telemóvel ao trocar de aba
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+
     renderizarTudo();
 }
 
-/* FILTROS DE PERÍODO (MANTÉM TUDO VISÍVEL SE 'Todos os Registros') */
-function toggleDateFilter() {
-    document.getElementById('dateFilterDropdown').classList.toggle('show');
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+    if (sidebar) sidebar.classList.toggle('active');
+    if (overlay) overlay.classList.toggle('active');
 }
 
-function selectPredefinedPeriod(element, periodName) {
-    filtroDataAtivo = periodName;
+/* FILTROS DE PERÍODO GLOBAL */
+function toggleDateFilter() {
+    const dropdown = document.getElementById('dateFilterDropdown');
+    if (dropdown) dropdown.classList.toggle('show');
+}
+
+function selecionarFiltroData(tipo, texto) {
+    filtroDataAtivo = tipo;
+    filtroTextoAtivo = texto;
     dataInicioCustom = '';
     dataFimCustom = '';
 
-    document.getElementById('currentPeriodText').innerText = periodName;
+    document.getElementById('currentPeriodText').innerText = texto;
     document.querySelectorAll('.filter-option').forEach(el => el.classList.remove('active-filter'));
-    if (element) element.classList.add('active-filter');
+    if (event && event.target) event.target.classList.add('active-filter');
 
     document.getElementById('dateFilterDropdown').classList.remove('show');
     renderizarTudo();
 }
 
-function aplicarFiltroPersonalizado() {
-    const dtInicio = document.getElementById('dataInicioFiltro').value;
-    const dtFim = document.getElementById('dataFimFiltro').value;
+function aplicarDataPersonalizada() {
+    const dtI = document.getElementById('dtInicio').value;
+    const dtF = document.getElementById('dtFim').value;
 
-    if (!dtInicio || !dtFim) {
+    if (!dtI || !dtF) {
         alert("Por favor, selecione as datas de início e fim.");
         return;
     }
 
-    filtroDataAtivo = 'Customizado';
-    dataInicioCustom = dtInicio;
-    dataFimCustom = dtFim;
+    filtroDataAtivo = 'custom';
+    dataInicioCustom = dtI;
+    dataFimCustom = dtF;
 
-    const textoFiltro = `${formatarDataBR(dtInicio)} até ${formatarDataBR(dtFim)}`;
-    document.getElementById('currentPeriodText').innerText = textoFiltro;
+    const texto = `${formatarDataBR(dtI)} até ${formatarDataBR(dtF)}`;
+    document.getElementById('currentPeriodText').innerText = texto;
     document.querySelectorAll('.filter-option').forEach(el => el.classList.remove('active-filter'));
     document.getElementById('dateFilterDropdown').classList.remove('show');
 
     renderizarTudo();
 }
 
-function limparFiltro() {
-    document.getElementById('dataInicioFiltro').value = '';
-    document.getElementById('dataFimFiltro').value = '';
-    const btnPadrao = document.getElementById('opt-todos');
-    selectPredefinedPeriod(btnPadrao, 'Todos os Registros');
+function limparFiltroData() {
+    document.getElementById('dtInicio').value = '';
+    document.getElementById('dtFim').value = '';
+    selecionarFiltroData('todos', 'Todos os Registros');
 }
 
 function filtrarPorPeriodo(lista, campoData = 'vencimento') {
     const listaArray = garantirArray(lista);
-    if (filtroDataAtivo === 'Todos os Registros') return listaArray;
+    if (filtroDataAtivo === 'todos') return listaArray;
 
     const agora = new Date();
     const anoAtual = agora.getFullYear();
@@ -271,24 +289,20 @@ function filtrarPorPeriodo(lista, campoData = 'vencimento') {
     return listaArray.filter(item => {
         if (!item[campoData]) return true;
         const dataItem = parseDateIso(item[campoData]);
-        if (!dataItem) return true; // Não exclui se a data não puder ser lida
+        if (!dataItem) return true;
 
         const anoItem = dataItem.getFullYear();
         const mesItem = dataItem.getMonth();
 
-        if (filtroDataAtivo === 'Este Mês') {
+        if (filtroDataAtivo === 'este-mes') {
             return anoItem === anoAtual && mesItem === mesAtualIndex;
-        } else if (filtroDataAtivo === 'Mês Passado') {
+        } else if (filtroDataAtivo === 'mes-passado') {
             const mesPassado = mesAtualIndex === 0 ? 11 : mesAtualIndex - 1;
             const anoPassado = mesAtualIndex === 0 ? anoAtual - 1 : anoAtual;
             return anoItem === anoPassado && mesItem === mesPassado;
-        } else if (filtroDataAtivo === 'Últimos 3 Meses') {
-            const limite3Meses = new Date();
-            limite3Meses.setMonth(limite3Meses.getMonth() - 3);
-            return dataItem >= limite3Meses;
-        } else if (filtroDataAtivo === 'Este Ano') {
+        } else if (filtroDataAtivo === 'este-ano') {
             return anoItem === anoAtual;
-        } else if (filtroDataAtivo === 'Customizado' && dataInicioCustom && dataFimCustom) {
+        } else if (filtroDataAtivo === 'custom' && dataInicioCustom && dataFimCustom) {
             const dtI = parseDateIso(dataInicioCustom);
             const dtF = parseDateIso(dataFimCustom);
             if (dtI) dtI.setHours(0,0,0,0);
@@ -299,90 +313,55 @@ function filtrarPorPeriodo(lista, campoData = 'vencimento') {
     });
 }
 
-/* RENDERIZAÇÃO E DASHBOARD */
+/* RENDERIZAÇÃO GERAL E DASHBOARD */
 function renderizarTudo() {
-    renderizarDashboard();
+    renderizarKPIs();
+    renderizarGraficos();
     renderizarContasPagar();
     renderizarContasReceber();
     renderizarEstoque();
     renderizarDRE();
 }
 
-function renderizarDashboard() {
+function renderizarKPIs() {
     const pagarFiltrado = filtrarPorPeriodo(contasPagar);
     const receberFiltrado = filtrarPorPeriodo(contasReceber);
 
-    const totalReceber = receberFiltrado.reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
-    const totalPagar = pagarFiltrado.reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
-    const saldoPrevisto = totalReceber - totalPagar;
+    const realIn = receberFiltrado.filter(r => getStatusEfetivo(r) === 'PAGO').reduce((acc, r) => acc + (parseFloat(r.valor) || 0), 0);
+    const pendingIn = receberFiltrado.filter(r => getStatusEfetivo(r) !== 'PAGO').reduce((acc, r) => acc + (parseFloat(r.valor) || 0), 0);
 
-    const patrimonioEstoque = garantirArray(estoque).reduce((acc, p) => acc + ((parseFloat(p.qtd) || 0) * (parseFloat(p.precoCusto) || 0)), 0);
+    const realOut = pagarFiltrado.filter(p => getStatusEfetivo(p) === 'PAGO').reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+    const pendingOut = pagarFiltrado.filter(p => getStatusEfetivo(p) !== 'PAGO').reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
 
-    document.getElementById('cardReceberLabel').innerText = `A Receber (${filtroDataAtivo})`;
-    document.getElementById('cardPagarLabel').innerText = `A Pagar (${filtroDataAtivo})`;
-    document.getElementById('dashTotalReceber').innerText = formatarMoeda(totalReceber);
-    document.getElementById('dashTotalPagar').innerText = formatarMoeda(totalPagar);
-    document.getElementById('dashSaldoPrevisto').innerText = formatarMoeda(saldoPrevisto);
-    document.getElementById('dashValorEstoque').innerText = formatarMoeda(patrimonioEstoque);
+    const balanceReal = realIn - realOut;
+    const balanceProjected = (realIn + pendingIn) - (realOut + pendingOut);
 
-    const proximosTable = document.getElementById('tableProximosVencimentos');
-    if (proximosTable) {
-        const uniao = [
-            ...pagarFiltrado.map(p => ({ ...p, tipoConta: 'SAIDA', nome: p.fornecedor })),
-            ...receberFiltrado.map(r => ({ ...r, tipoConta: 'ENTRADA', nome: r.cliente }))
-        ].sort((a, b) => String(a.vencimento).localeCompare(String(b.vencimento))).slice(0, 5);
+    const stockVal = garantirArray(estoque).reduce((acc, e) => acc + ((parseFloat(e.qtd) || 0) * (parseFloat(e.custo) || 0)), 0);
 
-        if (uniao.length === 0) {
-            proximosTable.innerHTML = `<tr><td colspan="5" style="text-align:center;">Nenhum lançamento no período.</td></tr>`;
-        } else {
-            proximosTable.innerHTML = uniao.map(item => {
-                const stEfetivo = getStatusEfetivo(item);
-                return `
-                    <tr>
-                        <td>${formatarDataBR(item.vencimento)}</td>
-                        <td><span class="badge ${item.tipoConta === 'ENTRADA' ? 'badge-success' : 'badge-danger'}">${item.tipoConta}</span></td>
-                        <td><strong>${item.nome}</strong></td>
-                        <td class="${item.tipoConta === 'ENTRADA' ? 'text-success' : 'text-danger'} font-bold">${formatarMoeda(item.valor)}</td>
-                        <td><span class="status ${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
-                    </tr>
-                `;
-            }).join('');
-        }
-    }
-
-    const painelAlertas = document.getElementById('painelAlertasEstoque');
-    if (painelAlertas) {
-        const itensCriticos = garantirArray(estoque).filter(p => p.qtd <= p.qtdMin);
-        if (itensCriticos.length === 0) {
-            painelAlertas.innerHTML = `<p class="text-success font-bold"><i class="fas fa-check-circle"></i> Todos os produtos com estoque saudável!</p>`;
-        } else {
-            painelAlertas.innerHTML = itensCriticos.map(p => `
-                <div class="alert-item">
-                    <div>
-                        <strong>${p.sku} - ${p.nome}</strong><br>
-                        <small>Qtd Atual: <b class="text-danger">${p.qtd}</b> / Mínima: ${p.qtdMin}</small>
-                    </div>
-                    <span class="badge badge-danger">${p.qtd === 0 ? 'ESGOTADO' : 'BAIXO'}</span>
-                </div>
-            `).join('');
-        }
-    }
-
-    renderizarGraficosSeguro(receberFiltrado, pagarFiltrado);
+    if (document.getElementById('kpiRealIn')) document.getElementById('kpiRealIn').innerText = formatarMoeda(realIn);
+    if (document.getElementById('kpiPendingIn')) document.getElementById('kpiPendingIn').innerText = formatarMoeda(pendingIn);
+    if (document.getElementById('kpiRealOut')) document.getElementById('kpiRealOut').innerText = formatarMoeda(realOut);
+    if (document.getElementById('kpiPendingOut')) document.getElementById('kpiPendingOut').innerText = formatarMoeda(pendingOut);
+    if (document.getElementById('kpiBalanceReal')) document.getElementById('kpiBalanceReal').innerText = formatarMoeda(balanceReal);
+    if (document.getElementById('kpiBalanceProjected')) document.getElementById('kpiBalanceProjected').innerText = formatarMoeda(balanceProjected);
+    if (document.getElementById('kpiStockValue')) document.getElementById('kpiStockValue').innerText = formatarMoeda(stockVal);
 }
 
-function renderizarGraficosSeguro(receberList, pagarList) {
+function renderizarGraficos() {
     if (typeof Chart === 'undefined') return;
 
     try {
-        const ctxFluxo = document.getElementById('fluxoCaixaChart');
-        if (ctxFluxo && ctxFluxo.offsetParent !== null) {
-            if (fluxoCaixaChartInstance) fluxoCaixaChartInstance.destroy();
+        const ctxFluxo = document.getElementById('chartFluxo');
+        if (ctxFluxo) {
+            if (chartFluxoInstance) chartFluxoInstance.destroy();
 
-            const recTotal = receberList.reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
-            const pagTotal = pagarList.reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
+            const receberList = filtrarPorPeriodo(contasReceber);
+            const pagarList = filtrarPorPeriodo(contasPagar);
 
-            fluxoCaixaChartInstance = new Chart(ctxFluxo.getContext('2d'), {
+            const recTotal = receberList.reduce((acc, r) => acc + (parseFloat(r.valor) || 0), 0);
+            const pagTotal = pagarList.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+
+            chartFluxoInstance = new Chart(ctxFluxo.getContext('2d'), {
                 type: 'bar',
                 data: {
                     labels: ['Entradas (A Receber)', 'Saídas (A Pagar)'],
@@ -393,593 +372,522 @@ function renderizarGraficosSeguro(receberList, pagarList) {
                         borderRadius: 6
                     }]
                 },
-                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
         }
 
-        const ctxCusto = document.getElementById('centroCustoChart');
-        if (ctxCusto && ctxCusto.offsetParent !== null) {
-            if (centroCustoChartInstance) centroCustoChartInstance.destroy();
+        const ctxCat = document.getElementById('chartCategoria');
+        if (ctxCat) {
+            if (chartCategoriaInstance) chartCategoriaInstance.destroy();
 
+            const pagarList = filtrarPorPeriodo(contasPagar);
             const categoriasMap = {};
             pagarList.forEach(p => {
-                categoriasMap[p.categoria] = (categoriasMap[p.categoria] || 0) + (parseFloat(p.valor) || 0);
+                const cat = p.centro || 'Geral';
+                categoriasMap[cat] = (categoriasMap[cat] || 0) + (parseFloat(p.valor) || 0);
             });
 
             const labels = Object.keys(categoriasMap);
             const data = Object.values(categoriasMap);
 
-            centroCustoChartInstance = new Chart(ctxCusto.getContext('2d'), {
+            chartCategoriaInstance = new Chart(ctxCat.getContext('2d'), {
                 type: 'doughnut',
                 data: {
                     labels: labels.length ? labels : ['Sem Saídas'],
                     datasets: [{
                         data: data.length ? data : [1],
-                        backgroundColor: ['#FFD500', '#111111', '#e74c3c', '#3498db', '#9b59b6'],
+                        backgroundColor: ['#FFD500', '#111111', '#e74c3c', '#3498db', '#8e44ad'],
                         borderWidth: 0
                     }]
                 },
-                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '70%' }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
             });
         }
-    } catch (err) {
-        console.warn("Erro ao renderizar gráficos:", err);
+    } catch (e) {
+        console.warn("Erro ao carregar gráficos:", e);
     }
 }
 
-/* CONTAS A PAGAR E RECEBER (EXIBE TUDO QUANDO 'todos') */
+/* TABELA CONTAS A PAGAR */
 function renderizarContasPagar() {
-    const tbody = document.getElementById('tableContasPagar');
+    const tbody = document.getElementById('tbodyPagar');
     if (!tbody) return;
 
-    const termo = (document.getElementById('searchPagar')?.value || '').trim().toLowerCase();
-    const statusFiltro = (document.getElementById('filterStatusPagar')?.value || 'todos').toLowerCase();
+    let list = filtrarPorPeriodo(contasPagar);
+    const termo = (document.getElementById('searchPagar')?.value || '').toLowerCase();
+    const stFiltro = (document.getElementById('filterStatusPagar')?.value || '').toUpperCase();
+    const centroFiltro = (document.getElementById('filterCentroPagar')?.value || '').toUpperCase();
 
-    let filtradas = filtrarPorPeriodo(contasPagar);
-
-    if (termo !== '') {
-        filtradas = filtradas.filter(p => 
-            (p.fornecedor && String(p.fornecedor).toLowerCase().includes(termo)) || 
-            (p.descricao && String(p.descricao).toLowerCase().includes(termo)) ||
-            (p.categoria && String(p.categoria).toLowerCase().includes(termo))
-        );
+    if (termo) {
+        list = list.filter(p => (p.pessoa && p.pessoa.toLowerCase().includes(termo)) || (p.descricao && p.descricao.toLowerCase().includes(termo)));
+    }
+    if (stFiltro) {
+        list = list.filter(p => getStatusEfetivo(p) === stFiltro);
+    }
+    if (centroFiltro) {
+        list = list.filter(p => String(p.centro).toUpperCase() === centroFiltro);
     }
 
-    // Se o filtro for diferente de 'todos', aplica o filtro de status
-    if (statusFiltro !== 'todos') {
-        filtradas = filtradas.filter(p => getStatusEfetivo(p).toLowerCase() === statusFiltro);
-    }
-
-    if (filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Nenhuma conta a pagar encontrada.</td></tr>`;
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Nenhum registo encontrado.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtradas.map(p => {
-        const stEfetivo = getStatusEfetivo(p);
+    tbody.innerHTML = list.map(p => {
+        const st = getStatusEfetivo(p);
         return `
             <tr>
                 <td>${formatarDataBR(p.vencimento)}</td>
-                <td><strong>${p.fornecedor}</strong></td>
-                <td>${p.descricao}</td>
-                <td class="text-danger font-bold">${formatarMoeda(p.valor)}</td>
-                <td><span class="category-badge">${p.categoria}</span></td>
-                <td><span class="status ${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
-                <td>${formatarDataBR(p.dataPagamento)}</td>
+                <td><b>${p.pessoa || '-'}</b></td>
+                <td>${p.descricao || '-'}</td>
+                <td style="color:var(--danger-color); font-weight:bold;">${formatarMoeda(p.valor)}</td>
+                <td><span class="status-badge ${st.toLowerCase()}">${st}</span></td>
+                <td><span class="badge-fixa">${p.centro || 'GERAL'}</span></td>
                 <td>
-                    ${stEfetivo !== 'PAGO' ? `<button type="button" class="btn-action btn-success" title="Dar Baixa" onclick="window.darBaixaPagar('${p.id}')"><i class="fas fa-check"></i> Pago</button>` : ''}
-                    <button type="button" class="btn-action btn-secondary" title="Editar" onclick="window.editarPagar('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button type="button" class="btn-action btn-danger" title="Excluir" onclick="window.excluirPagar('${p.id}')"><i class="fas fa-trash"></i></button>
+                    <div class="action-btns">
+                        ${st !== 'PAGO' ? `<button class="btn btn-success btn-sm" onclick="darBaixaPagar('${p.id}')"><i class="fas fa-check"></i> Pago</button>` : ''}
+                        <button class="btn btn-secondary btn-sm" onclick="abrirModalPagar('${p.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm" onclick="excluirPagar('${p.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;
     }).join('');
 }
 
-function renderizarContasReceber() {
-    const tbody = document.getElementById('tableContasReceber');
-    if (!tbody) return;
-
-    const termo = (document.getElementById('searchReceber')?.value || '').trim().toLowerCase();
-    const statusFiltro = (document.getElementById('filterStatusReceber')?.value || 'todos').toLowerCase();
-
-    let filtradas = filtrarPorPeriodo(contasReceber);
-
-    if (termo !== '') {
-        filtradas = filtradas.filter(r => 
-            (r.cliente && String(r.cliente).toLowerCase().includes(termo)) || 
-            (r.descricao && String(r.descricao).toLowerCase().includes(termo)) ||
-            (r.categoria && String(r.categoria).toLowerCase().includes(termo))
-        );
-    }
-
-    // Se o filtro for diferente de 'todos', aplica o filtro de status
-    if (statusFiltro !== 'todos') {
-        filtradas = filtradas.filter(r => getStatusEfetivo(r).toLowerCase() === statusFiltro);
-    }
-
-    if (filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Nenhuma conta a receber encontrada.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = filtradas.map(r => {
-        const stEfetivo = getStatusEfetivo(r);
-        return `
-            <tr>
-                <td>${formatarDataBR(r.vencimento)}</td>
-                <td><strong>${r.cliente}</strong></td>
-                <td>${r.descricao}</td>
-                <td class="text-success font-bold">${formatarMoeda(r.valor)}</td>
-                <td><span class="category-badge">${r.categoria}</span></td>
-                <td><span class="status ${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
-                <td>${formatarDataBR(r.dataPagamento)}</td>
-                <td>
-                    ${stEfetivo !== 'PAGO' ? `<button type="button" class="btn-action btn-success" title="Dar Baixa" onclick="window.darBaixaReceber('${r.id}')"><i class="fas fa-check"></i> Pago</button>` : ''}
-                    <button type="button" class="btn-action btn-secondary" title="Editar" onclick="window.editarReceber('${r.id}')"><i class="fas fa-edit"></i></button>
-                    <button type="button" class="btn-action btn-danger" title="Excluir" onclick="window.excluirReceber('${r.id}')"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
-        `;
-    }).join('');
+function filtrarTabelaPagar() {
+    renderizarContasPagar();
 }
 
-/* DAR BAIXA INSTANTÂNEA */
+function abrirModalPagar(id = null) {
+    const form = document.getElementById('modalPagar');
+    document.getElementById('pagarId').value = id || '';
+    if (id) {
+        const item = contasPagar.find(p => String(p.id) === String(id));
+        if (item) {
+            document.getElementById('titleModalPagar').innerText = 'Editar Conta a Pagar';
+            document.getElementById('pagarPessoa').value = item.pessoa || '';
+            document.getElementById('pagarDescricao').value = item.descricao || '';
+            document.getElementById('pagarValor').value = item.valor || '';
+            document.getElementById('pagarData').value = item.vencimento || '';
+            document.getElementById('pagarStatus').value = item.status || 'PENDENTE';
+            document.getElementById('pagarCentro').value = item.centro || 'ADMINISTRATIVO';
+        }
+    } else {
+        document.getElementById('titleModalPagar').innerText = 'Nova Conta a Pagar';
+        document.getElementById('pagarPessoa').value = '';
+        document.getElementById('pagarDescricao').value = '';
+        document.getElementById('pagarValor').value = '';
+        document.getElementById('pagarData').value = new Date().toISOString().split('T')[0];
+        document.getElementById('pagarStatus').value = 'PENDENTE';
+        document.getElementById('pagarCentro').value = 'ADMINISTRATIVO';
+    }
+    form.style.display = 'flex';
+}
+
+function salvarPagar(e) {
+    if (e) e.preventDefault();
+    const id = document.getElementById('pagarId').value;
+    const novo = {
+        id: id || Date.now().toString(),
+        vencimento: document.getElementById('pagarData').value,
+        pessoa: document.getElementById('pagarPessoa').value,
+        descricao: document.getElementById('pagarDescricao').value,
+        valor: parseFloat(document.getElementById('pagarValor').value) || 0,
+        status: document.getElementById('pagarStatus').value,
+        centro: document.getElementById('pagarCentro').value,
+        dataPagamento: document.getElementById('pagarStatus').value === 'PAGO' ? new Date().toISOString().split('T')[0] : ''
+    };
+
+    if (id) {
+        const idx = contasPagar.findIndex(p => String(p.id) === String(id));
+        if (idx !== -1) contasPagar[idx] = novo;
+    } else {
+        contasPagar.push(novo);
+    }
+
+    salvarDadosLocal();
+    fecharModal('modalPagar');
+    renderizarTudo();
+}
+
 function darBaixaPagar(id) {
-    contasPagar = garantirArray(contasPagar);
     const item = contasPagar.find(p => String(p.id) === String(id));
     if (item) {
         item.status = 'PAGO';
         item.dataPagamento = new Date().toISOString().split('T')[0];
-
         salvarDadosLocal();
         renderizarTudo();
     }
-}
-
-function darBaixaReceber(id) {
-    contasReceber = garantirArray(contasReceber);
-    const item = contasReceber.find(r => String(r.id) === String(id));
-    if (item) {
-        item.status = 'PAGO';
-        item.dataPagamento = new Date().toISOString().split('T')[0];
-
-        salvarDadosLocal();
-        renderizarTudo();
-    }
-}
-
-function salvarContaPagar(event) {
-    if (event) event.preventDefault();
-    const id = document.getElementById('pagId').value;
-    const conta = {
-        id: id ? String(id) : Date.now().toString(),
-        fornecedor: document.getElementById('pagFornecedor').value.trim(),
-        descricao: document.getElementById('pagDescricao').value.trim(),
-        valor: parseFloat(document.getElementById('pagValor').value) || 0,
-        vencimento: document.getElementById('pagVencimento').value,
-        categoria: document.getElementById('pagCategoria').value,
-        status: document.getElementById('pagStatus').value,
-        dataPagamento: document.getElementById('pagDataPagamento').value,
-        tipoPagamento: document.getElementById('pagTipoPagamento').value
-    };
-
-    contasPagar = garantirArray(contasPagar);
-    if (id) {
-        const idx = contasPagar.findIndex(p => String(p.id) === String(id));
-        if (idx !== -1) contasPagar[idx] = conta;
-    } else {
-        contasPagar.push(conta);
-    }
-
-    salvarDadosLocal();
-    fecharModal('modalSaida');
-    renderizarTudo();
-}
-
-function salvarContaReceber(event) {
-    if (event) event.preventDefault();
-    const id = document.getElementById('entId').value;
-    const conta = {
-        id: id ? String(id) : Date.now().toString(),
-        cliente: document.getElementById('entCliente').value.trim(),
-        descricao: document.getElementById('entDescricao').value.trim(),
-        valor: parseFloat(document.getElementById('entValor').value) || 0,
-        vencimento: document.getElementById('entVencimento').value,
-        categoria: document.getElementById('entCategoria').value,
-        status: document.getElementById('entStatus').value,
-        dataPagamento: document.getElementById('entDataPagamento').value,
-        tipoPagamento: document.getElementById('entTipoPagamento').value
-    };
-
-    contasReceber = garantirArray(contasReceber);
-    if (id) {
-        const idx = contasReceber.findIndex(r => String(r.id) === String(id));
-        if (idx !== -1) contasReceber[idx] = conta;
-    } else {
-        contasReceber.push(conta);
-    }
-
-    salvarDadosLocal();
-    fecharModal('modalEntrada');
-    renderizarTudo();
-}
-
-function editarPagar(id) {
-    const p = garantirArray(contasPagar).find(item => String(item.id) === String(id));
-    if (!p) return;
-
-    document.getElementById('pagId').value = p.id;
-    document.getElementById('pagFornecedor').value = p.fornecedor;
-    document.getElementById('pagDescricao').value = p.descricao;
-    document.getElementById('pagValor').value = p.valor;
-    document.getElementById('pagVencimento').value = p.vencimento;
-    document.getElementById('pagCategoria').value = p.categoria;
-    document.getElementById('pagStatus').value = p.status;
-    document.getElementById('pagDataPagamento').value = p.dataPagamento || '';
-    document.getElementById('pagTipoPagamento').value = p.tipoPagamento || 'PIX';
-
-    abrirModal('modalSaida');
 }
 
 function excluirPagar(id) {
-    if (confirm('Deseja realmente excluir esta conta a pagar?')) {
-        contasPagar = garantirArray(contasPagar).filter(p => String(p.id) !== String(id));
+    if (confirm('Deseja realmente remover esta conta a pagar?')) {
+        contasPagar = contasPagar.filter(p => String(p.id) !== String(id));
         salvarDadosLocal();
         renderizarTudo();
     }
 }
 
-function editarReceber(id) {
-    const r = garantirArray(contasReceber).find(item => String(item.id) === String(id));
-    if (!r) return;
-
-    document.getElementById('entId').value = r.id;
-    document.getElementById('entCliente').value = r.cliente;
-    document.getElementById('entDescricao').value = r.descricao;
-    document.getElementById('entValor').value = r.valor;
-    document.getElementById('entVencimento').value = r.vencimento;
-    document.getElementById('entCategoria').value = r.categoria;
-    document.getElementById('entStatus').value = r.status;
-    document.getElementById('entDataPagamento').value = r.dataPagamento || '';
-    document.getElementById('entTipoPagamento').value = r.tipoPagamento || 'PIX';
-
-    abrirModal('modalEntrada');
-}
-
-function excluirReceber(id) {
-    if (confirm('Deseja realmente excluir esta conta a receber?')) {
-        contasReceber = garantirArray(contasReceber).filter(r => String(r.id) !== String(id));
-        salvarDadosLocal();
-        renderizarTudo();
-    }
-}
-
-/* CONTROLE DE ESTOQUE */
-function renderizarEstoque() {
-    const tbody = document.getElementById('tableEstoque');
+/* TABELA CONTAS A RECEBER */
+function renderizarContasReceber() {
+    const tbody = document.getElementById('tbodyReceber');
     if (!tbody) return;
 
-    const termo = (document.getElementById('searchEstoque')?.value || '').trim().toLowerCase();
-    const filtroAlerta = (document.getElementById('filterAlertaEstoque')?.value || 'todos').toLowerCase();
+    let list = filtrarPorPeriodo(contasReceber);
+    const termo = (document.getElementById('searchReceber')?.value || '').toLowerCase();
+    const stFiltro = (document.getElementById('filterStatusReceber')?.value || '').toUpperCase();
+    const centroFiltro = (document.getElementById('filterCentroReceber')?.value || '').toUpperCase();
 
-    let filtrados = [...garantirArray(estoque)];
-
-    if (termo !== '') {
-        filtrados = filtrados.filter(p => 
-            (p.sku && String(p.sku).toLowerCase().includes(termo)) || 
-            (p.nome && String(p.nome).toLowerCase().includes(termo))
-        );
+    if (termo) {
+        list = list.filter(r => (r.pessoa && r.pessoa.toLowerCase().includes(termo)) || (r.descricao && r.descricao.toLowerCase().includes(termo)));
+    }
+    if (stFiltro) {
+        list = list.filter(r => getStatusEfetivo(r) === stFiltro);
+    }
+    if (centroFiltro) {
+        list = list.filter(r => String(r.centro).toUpperCase() === centroFiltro);
     }
 
-    if (filtroAlerta === 'alerta') {
-        filtrados = filtrados.filter(p => p.qtd <= p.qtdMin && p.qtd > 0);
-    } else if (filtroAlerta === 'zerado') {
-        filtrados = filtrados.filter(p => p.qtd === 0);
-    }
-
-    const patrimonioTotal = garantirArray(estoque).reduce((acc, p) => acc + (p.qtd * p.precoCusto), 0);
-    const totalCriticos = garantirArray(estoque).filter(p => p.qtd <= p.qtdMin).length;
-
-    document.getElementById('stkPatrimonioTotal').innerText = formatarMoeda(patrimonioTotal);
-    document.getElementById('stkTotalSkus').innerText = estoque.length;
-    document.getElementById('stkTotalAlertas').innerText = totalCriticos;
-
-    if (filtrados.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Nenhum produto cadastrado no estoque.</td></tr>`;
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Nenhum registo encontrado.</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtrados.map(p => {
-        const margemLucro = p.precoCusto > 0 ? (((p.precoVenda - p.precoCusto) / p.precoCusto) * 100).toFixed(1) : 0;
-        const totalInvestidoItem = p.qtd * p.precoCusto;
-        const isBaixo = p.qtd <= p.qtdMin;
-
+    tbody.innerHTML = list.map(r => {
+        const st = getStatusEfetivo(r);
         return `
             <tr>
-                <td><strong>${p.sku}</strong></td>
-                <td>${p.nome}</td>
-                <td><span class="category-badge">${p.categoria}</span></td>
-                <td class="${isBaixo ? 'text-danger font-bold' : ''}">${p.qtd} ${isBaixo ? '<i class="fas fa-exclamation-circle"></i>' : ''}</td>
-                <td>${p.qtdMin}</td>
-                <td>${formatarMoeda(p.precoCusto)}</td>
-                <td>${formatarMoeda(p.precoVenda)}</td>
-                <td><span class="badge badge-success">+${margemLucro}%</span></td>
-                <td><strong>${formatarMoeda(totalInvestidoItem)}</strong></td>
+                <td>${formatarDataBR(r.vencimento)}</td>
+                <td><b>${r.pessoa || '-'}</b></td>
+                <td>${r.descricao || '-'}</td>
+                <td style="color:var(--success-color); font-weight:bold;">${formatarMoeda(r.valor)}</td>
+                <td><span class="status-badge ${st.toLowerCase()}">${st}</span></td>
+                <td><span class="badge-fixa">${r.centro || 'SERVIÇOS'}</span></td>
                 <td>
-                    <button type="button" class="btn-action btn-primary" title="Movimentar (+/-)" onclick="window.abrirModalMovimentacao('${p.id}')"><i class="fas fa-exchange-alt"></i></button>
-                    <button type="button" class="btn-action btn-secondary" title="Editar" onclick="window.editarProduto('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button type="button" class="btn-action btn-danger" title="Excluir" onclick="window.excluirProduto('${p.id}')"><i class="fas fa-trash"></i></button>
+                    <div class="action-btns">
+                        ${st !== 'PAGO' ? `<button class="btn btn-success btn-sm" onclick="darBaixaReceber('${r.id}')"><i class="fas fa-check"></i> Pago</button>` : ''}
+                        <button class="btn btn-secondary btn-sm" onclick="abrirModalReceber('${r.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm" onclick="excluirReceber('${r.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;
     }).join('');
 }
 
-function salvarProduto(event) {
-    if (event) event.preventDefault();
-    const id = document.getElementById('prodId').value;
-    const prod = {
-        id: id ? String(id) : Date.now().toString(),
-        sku: document.getElementById('prodSku').value.trim(),
-        categoria: document.getElementById('prodCategoria').value.trim(),
-        nome: document.getElementById('prodNome').value.trim(),
-        qtd: parseInt(document.getElementById('prodQtd').value) || 0,
-        qtdMin: parseInt(document.getElementById('prodQtdMin').value) || 0,
-        precoCusto: parseFloat(document.getElementById('prodPrecoCusto').value) || 0,
-        precoVenda: parseFloat(document.getElementById('prodPrecoVenda').value) || 0
+function filtrarTabelaReceber() {
+    renderizarContasReceber();
+}
+
+function abrirModalReceber(id = null) {
+    const form = document.getElementById('modalReceber');
+    document.getElementById('receberId').value = id || '';
+    if (id) {
+        const item = contasReceber.find(r => String(r.id) === String(id));
+        if (item) {
+            document.getElementById('titleModalReceber').innerText = 'Editar Conta a Receber';
+            document.getElementById('receberPessoa').value = item.pessoa || '';
+            document.getElementById('receberDescricao').value = item.descricao || '';
+            document.getElementById('receberValor').value = item.valor || '';
+            document.getElementById('receberData').value = item.vencimento || '';
+            document.getElementById('receberStatus').value = item.status || 'PENDENTE';
+            document.getElementById('receberCentro').value = item.centro || 'SERVIÇOS';
+        }
+    } else {
+        document.getElementById('titleModalReceber').innerText = 'Nova Conta a Receber';
+        document.getElementById('receberPessoa').value = '';
+        document.getElementById('receberDescricao').value = '';
+        document.getElementById('receberValor').value = '';
+        document.getElementById('receberData').value = new Date().toISOString().split('T')[0];
+        document.getElementById('receberStatus').value = 'PENDENTE';
+        document.getElementById('receberCentro').value = 'SERVIÇOS';
+    }
+    form.style.display = 'flex';
+}
+
+function salvarReceber(e) {
+    if (e) e.preventDefault();
+    const id = document.getElementById('receberId').value;
+    const novo = {
+        id: id || Date.now().toString(),
+        vencimento: document.getElementById('receberData').value,
+        pessoa: document.getElementById('receberPessoa').value,
+        descricao: document.getElementById('receberDescricao').value,
+        valor: parseFloat(document.getElementById('receberValor').value) || 0,
+        status: document.getElementById('receberStatus').value,
+        centro: document.getElementById('receberCentro').value,
+        dataPagamento: document.getElementById('receberStatus').value === 'PAGO' ? new Date().toISOString().split('T')[0] : ''
     };
 
-    estoque = garantirArray(estoque);
     if (id) {
-        const idx = estoque.findIndex(p => String(p.id) === String(id));
-        if (idx !== -1) estoque[idx] = prod;
+        const idx = contasReceber.findIndex(r => String(r.id) === String(id));
+        if (idx !== -1) contasReceber[idx] = novo;
     } else {
-        estoque.push(prod);
+        contasReceber.push(novo);
     }
 
     salvarDadosLocal();
-    fecharModal('modalProduto');
+    fecharModal('modalReceber');
     renderizarTudo();
 }
 
-function editarProduto(id) {
-    const p = garantirArray(estoque).find(item => String(item.id) === String(id));
-    if (!p) return;
-
-    document.getElementById('prodId').value = p.id;
-    document.getElementById('prodSku').value = p.sku;
-    document.getElementById('prodCategoria').value = p.categoria;
-    document.getElementById('prodNome').value = p.nome;
-    document.getElementById('prodQtd').value = p.qtd;
-    document.getElementById('prodQtdMin').value = p.qtdMin;
-    document.getElementById('prodPrecoCusto').value = p.precoCusto;
-    document.getElementById('prodPrecoVenda').value = p.precoVenda;
-
-    abrirModal('modalProduto');
-}
-
-function excluirProduto(id) {
-    if (confirm('Deseja realmente remover este item do estoque?')) {
-        estoque = garantirArray(estoque).filter(p => String(p.id) !== String(id));
+function darBaixaReceber(id) {
+    const item = contasReceber.find(r => String(r.id) === String(id));
+    if (item) {
+        item.status = 'PAGO';
+        item.dataPagamento = new Date().toISOString().split('T')[0];
         salvarDadosLocal();
         renderizarTudo();
     }
 }
 
-function abrirModalMovimentacao(id) {
-    const p = garantirArray(estoque).find(item => String(item.id) === String(id));
-    if (!p) return;
-
-    document.getElementById('movProdId').value = p.id;
-    document.getElementById('movItemInfo').innerText = `Item: ${p.sku} - ${p.nome} (Qtd Atual: ${p.qtd})`;
-    abrirModal('modalMovimentacao');
+function excluirReceber(id) {
+    if (confirm('Deseja realmente remover esta conta a receber?')) {
+        contasReceber = contasReceber.filter(r => String(r.id) !== String(id));
+        salvarDadosLocal();
+        renderizarTudo();
+    }
 }
 
-function salvarMovimentacaoEstoque(event) {
-    if (event) event.preventDefault();
-    const id = document.getElementById('movProdId').value;
-    const tipo = document.getElementById('movTipo').value;
-    const qtd = parseInt(document.getElementById('movQtd').value) || 0;
+/* TABELA ESTOQUE */
+function renderizarEstoque() {
+    const tbody = document.getElementById('tbodyEstoque');
+    if (!tbody) return;
 
-    const p = garantirArray(estoque).find(item => String(item.id) === String(id));
-    if (p) {
-        if (tipo === 'SAIDA' && p.qtd < qtd) {
-            alert('Quantidade insuficiente em estoque!');
-            return;
+    let list = [...garantirArray(estoque)];
+    const termo = (document.getElementById('searchEstoque')?.value || '').toLowerCase();
+
+    if (termo) {
+        list = list.filter(e => (e.sku && e.sku.toLowerCase().includes(termo)) || (e.nome && e.nome.toLowerCase().includes(termo)));
+    }
+
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Nenhum produto cadastrado no estoque.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = list.map(e => {
+        const totalInvestido = (parseFloat(e.qtd) || 0) * (parseFloat(e.custo) || 0);
+        return `
+            <tr>
+                <td><code>${e.sku || '-'}</code></td>
+                <td><b>${e.nome || '-'}</b></td>
+                <td><span style="font-weight:bold; color:${e.qtd <= 5 ? 'red' : 'green'}">${e.qtd}</span></td>
+                <td>${formatarMoeda(e.custo)}</td>
+                <td>${formatarMoeda(e.venda)}</td>
+                <td><b>${formatarMoeda(totalInvestido)}</b></td>
+                <td>
+                    <div class="action-btns">
+                        <button class="btn btn-secondary btn-sm" onclick="abrirModalEstoque('${e.id}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm" onclick="excluirEstoque('${e.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filtrarTabelaEstoque() {
+    renderizarEstoque();
+}
+
+function abrirModalEstoque(id = null) {
+    const form = document.getElementById('modalEstoque');
+    document.getElementById('estoqueId').value = id || '';
+    if (id) {
+        const item = estoque.find(e => String(e.id) === String(id));
+        if (item) {
+            document.getElementById('titleModalEstoque').innerText = 'Editar Produto';
+            document.getElementById('estoqueSku').value = item.sku || '';
+            document.getElementById('estoqueNome').value = item.nome || '';
+            document.getElementById('estoqueQtd').value = item.qtd || 0;
+            document.getElementById('estoqueCusto').value = item.custo || 0;
+            document.getElementById('estoqueVenda').value = item.venda || 0;
         }
-        p.qtd = tipo === 'ENTRADA' ? p.qtd + qtd : p.qtd - qtd;
+    } else {
+        document.getElementById('titleModalEstoque').innerText = 'Novo Produto';
+        document.getElementById('estoqueSku').value = '';
+        document.getElementById('estoqueNome').value = '';
+        document.getElementById('estoqueQtd').value = '';
+        document.getElementById('estoqueCusto').value = '';
+        document.getElementById('estoqueVenda').value = '';
+    }
+    form.style.display = 'flex';
+}
+
+function salvarEstoque(e) {
+    if (e) e.preventDefault();
+    const id = document.getElementById('estoqueId').value;
+    const novo = {
+        id: id || Date.now().toString(),
+        sku: document.getElementById('estoqueSku').value,
+        nome: document.getElementById('estoqueNome').value,
+        qtd: parseInt(document.getElementById('estoqueQtd').value, 10) || 0,
+        custo: parseFloat(document.getElementById('estoqueCusto').value) || 0,
+        venda: parseFloat(document.getElementById('estoqueVenda').value) || 0
+    };
+
+    if (id) {
+        const idx = estoque.findIndex(e => String(e.id) === String(id));
+        if (idx !== -1) estoque[idx] = novo;
+    } else {
+        estoque.push(novo);
+    }
+
+    salvarDadosLocal();
+    fecharModal('modalEstoque');
+    renderizarTudo();
+}
+
+function excluirEstoque(id) {
+    if (confirm('Deseja realmente remover este item do estoque?')) {
+        estoque = estoque.filter(e => String(e.id) !== String(id));
         salvarDadosLocal();
-        fecharModal('modalMovimentacao');
         renderizarTudo();
     }
 }
 
-/* DEMONSTRATIVO DRE */
+/* DRE DEMONSTRATIVO */
 function renderizarDRE() {
-    const elText = document.getElementById('drePeriodoText');
-    if (elText) elText.innerText = filtroDataAtivo;
+    const container = document.getElementById('dreContainer');
+    if (!container) return;
 
-    const receberFiltrado = filtrarPorPeriodo(contasReceber);
-    const pagarFiltrado = filtrarPorPeriodo(contasPagar);
+    const recList = filtrarPorPeriodo(contasReceber);
+    const pagList = filtrarPorPeriodo(contasPagar);
 
-    const receitaBruta = receberFiltrado.reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
-    const cmv = pagarFiltrado.filter(p => p.categoria === 'Peças Novas').reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
-    const lucroBruto = receitaBruta - cmv;
-    const despesasOp = pagarFiltrado.filter(p => p.categoria !== 'Peças Novas').reduce((acc, c) => acc + (parseFloat(c.valor) || 0), 0);
-    const resultadoLiquido = lucroBruto - despesasOp;
-    const margemLiquida = receitaBruta > 0 ? ((resultadoLiquido / receitaBruta) * 100).toFixed(1) : 0;
+    const receitaTotal = recList.reduce((acc, r) => acc + (parseFloat(r.valor) || 0), 0);
+    const despesaTotal = pagList.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+    const lucroLiquido = receitaTotal - despesaTotal;
 
-    document.getElementById('dreReceitaBruta').innerText = formatarMoeda(receitaBruta);
-    document.getElementById('dreCMV').innerText = `- ${formatarMoeda(cmv)}`;
-    document.getElementById('dreLucroBruto').innerText = formatarMoeda(lucroBruto);
-    document.getElementById('dreDespesasOp').innerText = `- ${formatarMoeda(despesasOp)}`;
-    document.getElementById('dreResultadoLiquido').innerText = formatarMoeda(resultadoLiquido);
-    document.getElementById('dreMargemLiquida').innerText = `${margemLiquida}%`;
+    container.innerHTML = `
+        <div class="dre-row"><span>Receita Operacional Bruta</span> <b>${formatarMoeda(receitaTotal)}</b></div>
+        <div class="dre-row"><span>(-) Custos Fixos & Operacionais</span> <b style="color:var(--danger-color);">${formatarMoeda(despesaTotal)}</b></div>
+        <div class="dre-row total"><span>(=) Resultado do Exercício (Lucro Líquido)</span> <b style="color:${lucroLiquido >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">${formatarMoeda(lucroLiquido)}</b></div>
+    `;
 }
 
-/* EXTENSÃO CHROME & BACKUP */
-function lancamentoRapidoExtensao() {
-    const tipo = document.getElementById('extTipo').value;
-    const pessoa = document.getElementById('extPessoa').value.trim();
-    const desc = document.getElementById('extDescricao').value.trim();
-    const valor = parseFloat(document.getElementById('extValor').value) || 0;
-    const hoje = new Date().toISOString().split('T')[0];
-
-    if (tipo === 'RECEBER') {
-        contasReceber.push({
-            id: Date.now().toString(),
-            cliente: pessoa,
-            descricao: desc,
-            valor: valor,
-            vencimento: hoje,
-            categoria: 'Reparos',
-            status: 'PENDENTE',
-            dataPagamento: '',
-            tipoPagamento: 'PIX'
-        });
-    } else {
-        contasPagar.push({
-            id: Date.now().toString(),
-            fornecedor: pessoa,
-            descricao: desc,
-            valor: valor,
-            vencimento: hoje,
-            categoria: 'Custos Fixos',
-            status: 'PENDENTE',
-            dataPagamento: '',
-            tipoPagamento: 'PIX'
-        });
-    }
-
-    salvarDadosLocal();
-    alert('Lançamento efetuado com sucesso!');
-    document.getElementById('extPessoa').value = '';
-    document.getElementById('extDescricao').value = '';
-    document.getElementById('extValor').value = '';
-    renderizarTudo();
-}
-
-function exportarBackupJSON() {
-    const data = { contasPagar, contasReceber, estoque, exportDate: new Date().toISOString() };
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ricpower_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-}
-
-function importarBackupJSON(event) {
+/* IMPORTAÇÃO / CONVERSÃO DE EXCEL (.XLSX) VIA SHEETJS */
+function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
-            const data = JSON.parse(e.target.result);
-            if (data.contasPagar && data.contasReceber && data.estoque) {
-                contasPagar = garantirArray(data.contasPagar);
-                contasReceber = garantirArray(data.contasReceber);
-                estoque = garantirArray(data.estoque);
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+
+            let novosPagar = [];
+            let novosReceber = [];
+
+            if (workbook.Sheets['CONTAS A PAGAR']) {
+                const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets['CONTAS A PAGAR'], { header: 1 });
+                novosPagar = processarAbaExcel(sheetData, 'PAGAR');
+            }
+
+            if (workbook.Sheets['CONTAS A RECEBER']) {
+                const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets['CONTAS A RECEBER'], { header: 1 });
+                novosReceber = processarAbaExcel(sheetData, 'RECEBER');
+            }
+
+            if (novosPagar.length > 0 || novosReceber.length > 0) {
+                contasPagar = novosPagar;
+                contasReceber = novosReceber;
                 salvarDadosLocal();
                 renderizarTudo();
-                alert('Backup restaurado com sucesso!');
+                alert(`Planilha convertida e importada com sucesso!\n\n- Contas a Pagar: ${novosPagar.length}\n- Contas a Receber: ${novosReceber.length}`);
             } else {
-                alert('Formato de arquivo JSON inválido.');
+                alert('Não foram encontrados lançamentos válidos na planilha.');
             }
         } catch (err) {
-            alert('Erro ao processar o arquivo JSON.');
+            console.error(err);
+            alert('Erro ao processar o arquivo Excel.');
         }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
 }
 
-function exportarCSV(tipo) {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    if (tipo === 'pagar') {
-        csvContent += "Vencimento;Fornecedor;Descrição;Valor;Categoria;Status\n";
-        garantirArray(contasPagar).forEach(p => {
-            csvContent += `${p.vencimento};${p.fornecedor};${p.descricao};${p.valor};${p.categoria};${p.status}\n`;
-        });
-    } else {
-        csvContent += "Vencimento;Cliente;Descrição;Valor;Categoria;Status\n";
-        garantirArray(contasReceber).forEach(r => {
-            csvContent += `${r.vencimento};${r.cliente};${r.descricao};${r.valor};${r.categoria};${r.status}\n`;
+function processarAbaExcel(sheetData, tipo) {
+    let items = [];
+    let headerIdx = -1;
+
+    for (let i = 0; i < sheetData.length; i++) {
+        const rowStr = (sheetData[i] || []).join(' ').toUpperCase();
+        if (rowStr.includes('DATA DE VENCIMENTO') || rowStr.includes('FORNECEDOR') || rowStr.includes('CLIENTE')) {
+            headerIdx = i;
+            break;
+        }
+    }
+
+    if (headerIdx === -1) return items;
+
+    for (let i = headerIdx + 1; i < sheetData.length; i++) {
+        const row = sheetData[i];
+        if (!row || row.length === 0) continue;
+
+        let dtVenc = row[1];
+        if (typeof dtVenc === 'number') {
+            const dateObj = XLSX.SSF.parse_date_code(dtVenc);
+            if (dateObj) {
+                dtVenc = `${dateObj.y}-${String(dateObj.m).padStart(2,'0')}-${String(dateObj.d).padStart(2,'0')}`;
+            }
+        } else if (dtVenc) {
+            dtVenc = String(dtVenc).split('T')[0];
+        }
+
+        const pessoa = row[2] ? String(row[2]).trim() : '';
+        const desc = row[3] ? String(row[3]).trim() : '';
+        const valor = parseFloat(row[4]) || 0;
+        let status = row[5] ? String(row[5]).toUpperCase().trim() : 'PENDENTE';
+        if (status.startsWith('=')) status = 'PENDENTE';
+        const centro = row[8] ? String(row[8]).trim().toUpperCase() : (tipo === 'PAGAR' ? 'ADMINISTRATIVO' : 'SERVIÇOS');
+
+        if (!pessoa && !valor) continue;
+
+        items.push({
+            id: String(Date.now() + Math.random()),
+            vencimento: dtVenc || new Date().toISOString().split('T')[0],
+            pessoa: pessoa || 'Não Informado',
+            descricao: desc || 'Lançamento via Excel',
+            valor: valor,
+            status: status,
+            centro: centro,
+            dataPagamento: status === 'PAGO' ? (dtVenc || '') : ''
         });
     }
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `ricpower_${tipo}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    return items;
 }
 
-/* MODAIS */
-function abrirModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'flex';
+function exportDataJSON() {
+    const data = { contasPagar, contasReceber, estoque, dataExportacao: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_ricpower_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
 }
 
+/* MODAIS GENERAL */
 function fecharModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'none';
 }
 
-function abrirModalEntrada() {
-    document.getElementById('formEntrada').reset();
-    document.getElementById('entId').value = '';
-    document.getElementById('entVencimento').value = new Date().toISOString().split('T')[0];
-    abrirModal('modalEntrada');
-}
-
-function abrirModalSaida() {
-    document.getElementById('formSaida').reset();
-    document.getElementById('pagId').value = '';
-    document.getElementById('pagVencimento').value = new Date().toISOString().split('T')[0];
-    abrirModal('modalSaida');
-}
-
-function abrirModalProduto() {
-    document.getElementById('formProduto').reset();
-    document.getElementById('prodId').value = '';
-    abrirModal('modalProduto');
-}
-
-/* ESCOPO GLOBAL */
-window.darBaixaPagar = darBaixaPagar;
-window.darBaixaReceber = darBaixaReceber;
-window.editarPagar = editarPagar;
-window.excluirPagar = excluirPagar;
-window.editarReceber = editarReceber;
-window.excluirReceber = excluirReceber;
-window.editarProduto = editarProduto;
-window.excluirProduto = excluirProduto;
-window.abrirModalMovimentacao = abrirModalMovimentacao;
-
+// FECHAR MODAIS E DROPDOWN AO CLICAR FORA
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
     }
     if (!event.target.closest('.modern-filter-container')) {
-        const dropdown = document.getElementById('dateFilterDropdown');
-        if (dropdown && dropdown.classList.contains('show')) dropdown.classList.remove('show');
+        const drop = document.getElementById('dateFilterDropdown');
+        if (drop && drop.classList.contains('show')) drop.classList.remove('show');
     }
 };
 
+// ARRANQUE DA APLICAÇÃO
 document.addEventListener('DOMContentLoaded', () => {
     verificarSessao();
-});
-// Atualiza o painel automaticamente se alterar dados noutra aba do navegador
-window.addEventListener('storage', (event) => {
-    if (['ricpower_pagar', 'ricpower_receber', 'ricpower_estoque'].includes(event.key)) {
-        contasPagar = garantirArray(JSON.parse(localStorage.getItem('ricpower_pagar')));
-        contasReceber = garantirArray(JSON.parse(localStorage.getItem('ricpower_receber')));
-        estoque = garantirArray(JSON.parse(localStorage.getItem('ricpower_estoque')));
-        renderizarTudo();
-    }
 });
