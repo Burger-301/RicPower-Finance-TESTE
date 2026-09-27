@@ -1,6 +1,6 @@
 // 1. CONFIGURAÇÃO OFICIAL DO FIREBASE COM REALTIME DATABASE
 const firebaseConfig = {
-  apiKey: "AIzaSyAMIo-e1IQVvoVNvHfjyCvQ3mpmA8XpEZU",
+  apiKey: "AIzaSyBUkwpOoOk4N3wsL-C6qP0n5Kuxn3AtIUo",
   authDomain: "ricpower-finance-4312b.firebaseapp.com",
   databaseURL: "https://ricpower-finance-4312b-default-rtdb.firebaseio.com",
   projectId: "ricpower-finance-4312b",
