@@ -781,10 +781,25 @@ function renderizarDRE() {
     `;
 }
 
-/* IMPORTAÇÃO / CONVERSÃO DE EXCEL (.XLSX) VIA SHEETJS */
+/* IMPORTAÇÃO / CONVERSÃO DE EXCEL (.XLSX) VIA SHEETJS COM FILTRO DE ÚLTIMOS X DIAS */
 function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
+
+    const respostaDias = prompt(
+        "Deseja importar apenas os lançamentos dos últimos X dias da planilha?\n\n" +
+        "• Digite a quantidade de dias (ex: 7, 15, 30, 60)\n" +
+        "• Deixe em branco para importar toda a planilha:", 
+        "30"
+    );
+
+    let limiteDias = null;
+    if (respostaDias !== null && respostaDias.trim() !== '') {
+        const diasNum = parseInt(respostaDias, 10);
+        if (!isNaN(diasNum) && diasNum > 0) {
+            limiteDias = diasNum;
+        }
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -797,25 +812,28 @@ function handleExcelUpload(event) {
 
             if (workbook.Sheets['CONTAS A PAGAR']) {
                 const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets['CONTAS A PAGAR'], { header: 1 });
-                novosPagar = processarAbaExcel(sheetData, 'PAGAR');
+                novosPagar = processarAbaExcel(sheetData, 'PAGAR', limiteDias);
             }
 
             if (workbook.Sheets['CONTAS A RECEBER']) {
                 const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets['CONTAS A RECEBER'], { header: 1 });
-                novosReceber = processarAbaExcel(sheetData, 'RECEBER');
+                novosReceber = processarAbaExcel(sheetData, 'RECEBER', limiteDias);
             }
 
             if (novosPagar.length > 0 || novosReceber.length > 0) {
-                // Junta os lançamentos atuais com os novos lançamentos da planilha
+                // MANTÉM OS DADOS ANTERIORES E ADICIONA OS NOVOS
                 contasPagar = [...garantirArray(contasPagar), ...novosPagar];
                 contasReceber = [...garantirArray(contasReceber), ...novosReceber];
 
                 salvarDadosLocal();
                 renderizarTudo();
 
-                alert(`Novos registros adicionados com sucesso!\n\n- Contas a Pagar adicionadas: ${novosPagar.length}\n- Contas a Receber adicionadas: ${novosReceber.length}`);
+                const msgFiltro = limiteDias ? ` (últimos ${limiteDias} dias)` : ' (todos os registros)';
+                alert(`Novos registros adicionados com sucesso!\n\n` +
+                      `- Contas a Pagar adicionadas: ${novosPagar.length}${msgFiltro}\n` +
+                      `- Contas a Receber adicionadas: ${novosReceber.length}${msgFiltro}`);
             } else {
-                alert('Não foram encontrados lançamentos válidos na planilha.');
+                alert('Nenhum lançamento válido foi encontrado na planilha para o período solicitado.');
             }
         } catch (err) {
             console.error(err);
@@ -827,9 +845,16 @@ function handleExcelUpload(event) {
     reader.readAsArrayBuffer(file);
 }
 
-function processarAbaExcel(sheetData, tipo) {
+function processarAbaExcel(sheetData, tipo, limiteDias = null) {
     let items = [];
     let headerIdx = -1;
+
+    let dataCorte = null;
+    if (limiteDias && !isNaN(limiteDias)) {
+        dataCorte = new Date();
+        dataCorte.setDate(dataCorte.getDate() - parseInt(limiteDias, 10));
+        dataCorte.setHours(0, 0, 0, 0);
+    }
 
     for (let i = 0; i < sheetData.length; i++) {
         const rowStr = (sheetData[i] || []).join(' ').toUpperCase();
@@ -863,6 +888,14 @@ function processarAbaExcel(sheetData, tipo) {
         const centro = row[8] ? String(row[8]).trim().toUpperCase() : (tipo === 'PAGAR' ? 'ADMINISTRATIVO' : 'SERVIÇOS');
 
         if (!pessoa && !valor) continue;
+
+        // Se houver limite de dias, ignora o registro caso a data seja anterior à data limite
+        if (dataCorte && dtVenc) {
+            const dtObj = parseDateIso(dtVenc);
+            if (dtObj && dtObj < dataCorte) {
+                continue;
+            }
+        }
 
         items.push({
             id: String(Date.now() + Math.random()),
