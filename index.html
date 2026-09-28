@@ -59,7 +59,7 @@
         }
         .login-card {
             background-color: var(--secondary-color); width: 100%; max-width: 400px;
-            padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 40px 40px 25px 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border-top: 5px solid var(--accent-color); color: white; text-align: center;
         }
         .login-card .logo { margin-bottom: 25px; display: flex; align-items: center; justify-content: center; }
@@ -80,7 +80,7 @@
         .sidebar .logo { padding: 20px 15px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; min-height: 85px; }
         .nav-link { padding: 16px 25px; color: #b8c7ce; text-decoration: none; display: flex; align-items: center; gap: 15px; transition: 0.2s; font-size: 15px; font-weight: 500; cursor: pointer; }
         .nav-link:hover, .nav-link.active { background-color: var(--secondary-color); color: var(--accent-color); border-left: 4px solid var(--accent-color); }
-        .sidebar-footer { margin-top: auto; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: #888; text-align: center; }
+        .sidebar-footer { margin-top: auto; padding: 20px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 11px; color: #888; text-align: center; }
 
         /* OVERLAY SIDEBAR MOBILE */
         .sidebar-overlay {
@@ -302,6 +302,9 @@
                     <i class="fas fa-sign-in-alt"></i> Entrar no Sistema
                 </button>
             </form>
+            <div style="margin-top: 25px; font-size: 11px; color: #777; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
+                Powered by <strong style="color: var(--accent-color);">CS Code Solutions</strong>
+            </div>
         </div>
     </div>
 
@@ -317,7 +320,10 @@
         <div class="nav-link" onclick="trocarAba('dre', this)"><i class="fas fa-file-invoice-dollar"></i> Análise DRE</div>
         <div class="nav-link" onclick="trocarAba('extensao', this)"><i class="fas fa-database"></i> Backup & Integrações</div>
         <div class="sidebar-footer">
-            <button class="btn btn-danger" style="width: 100%; justify-content: center;" onclick="fazerLogout()"><i class="fas fa-power-off"></i> Sair</button>
+            <button class="btn btn-danger" style="width: 100%; justify-content: center; margin-bottom: 12px;" onclick="fazerLogout()"><i class="fas fa-power-off"></i> Sair</button>
+            <div style="font-size: 11px; color: #777;">
+                Powered by <strong style="color: var(--accent-color);">CS Code Solutions</strong>
+            </div>
         </div>
     </div>
 
@@ -713,6 +719,6 @@
     </div>
 
     <!-- SCRIPT DA APLICAÇÃO -->
-    <script src="script.js"></script>
+    <script src="script.js?v=4.0"></script>
 </body>
 </html>
