@@ -208,13 +208,13 @@ function showTab(tabId, navElement) {
         'receber': 'Contas a Receber (Entradas)',
         'estoque': 'Controle de Estoque (Peças)',
         'dre': 'Demonstrativo do Resultado do Exercício (DRE)',
-        'extensao': 'Extensão Chrome & Integrações'
+        'extensao': 'Integrações & Importação'
     };
     document.getElementById('pageTitle').innerText = titles[tabId] || 'RICPOWER';
     renderizarTudo();
 }
 
-/* FILTROS DE PERÍODO (MANTÉM TUDO VISÍVEL SE 'Todos os Registros') */
+/* FILTROS DE PERÍODO */
 function toggleDateFilter() {
     document.getElementById('dateFilterDropdown').classList.toggle('show');
 }
@@ -271,7 +271,7 @@ function filtrarPorPeriodo(lista, campoData = 'vencimento') {
     return listaArray.filter(item => {
         if (!item[campoData]) return true;
         const dataItem = parseDateIso(item[campoData]);
-        if (!dataItem) return true; // Não exclui se a data não puder ser lida
+        if (!dataItem) return true;
 
         const anoItem = dataItem.getFullYear();
         const mesItem = dataItem.getMonth();
@@ -427,7 +427,7 @@ function renderizarGraficosSeguro(receberList, pagarList) {
     }
 }
 
-/* CONTAS A PAGAR E RECEBER (EXIBE TUDO QUANDO 'todos') */
+/* CONTAS A PAGAR E RECEBER */
 function renderizarContasPagar() {
     const tbody = document.getElementById('tableContasPagar');
     if (!tbody) return;
@@ -445,7 +445,6 @@ function renderizarContasPagar() {
         );
     }
 
-    // Se o filtro for diferente de 'todos', aplica o filtro de status
     if (statusFiltro !== 'todos') {
         filtradas = filtradas.filter(p => getStatusEfetivo(p).toLowerCase() === statusFiltro);
     }
@@ -493,7 +492,6 @@ function renderizarContasReceber() {
         );
     }
 
-    // Se o filtro for diferente de 'todos', aplica o filtro de status
     if (statusFiltro !== 'todos') {
         filtradas = filtradas.filter(r => getStatusEfetivo(r).toLowerCase() === statusFiltro);
     }
@@ -524,14 +522,12 @@ function renderizarContasReceber() {
     }).join('');
 }
 
-/* DAR BAIXA INSTANTÂNEA */
 function darBaixaPagar(id) {
     contasPagar = garantirArray(contasPagar);
     const item = contasPagar.find(p => String(p.id) === String(id));
     if (item) {
         item.status = 'PAGO';
         item.dataPagamento = new Date().toISOString().split('T')[0];
-
         salvarDadosLocal();
         renderizarTudo();
     }
@@ -543,7 +539,6 @@ function darBaixaReceber(id) {
     if (item) {
         item.status = 'PAGO';
         item.dataPagamento = new Date().toISOString().split('T')[0];
-
         salvarDadosLocal();
         renderizarTudo();
     }
@@ -818,48 +813,246 @@ function renderizarDRE() {
     document.getElementById('dreMargemLiquida').innerText = `${margemLiquida}%`;
 }
 
-/* EXTENSÃO CHROME & BACKUP */
-function lancamentoRapidoExtensao() {
-    const tipo = document.getElementById('extTipo').value;
-    const pessoa = document.getElementById('extPessoa').value.trim();
-    const desc = document.getElementById('extDescricao').value.trim();
-    const valor = parseFloat(document.getElementById('extValor').value) || 0;
-    const hoje = new Date().toISOString().split('T')[0];
+/* IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) REATORADA PARA A ESTRUTURA DO SISTEMA */
+function importarPlanilhaExcel(e) {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    if (tipo === 'RECEBER') {
-        contasReceber.push({
-            id: Date.now().toString(),
-            cliente: pessoa,
-            descricao: desc,
-            valor: valor,
-            vencimento: hoje,
-            categoria: 'Reparos',
-            status: 'PENDENTE',
-            dataPagamento: '',
-            tipoPagamento: 'PIX'
-        });
-    } else {
-        contasPagar.push({
-            id: Date.now().toString(),
-            fornecedor: pessoa,
-            descricao: desc,
-            valor: valor,
-            vencimento: hoje,
-            categoria: 'Custos Fixos',
-            status: 'PENDENTE',
-            dataPagamento: '',
-            tipoPagamento: 'PIX'
-        });
+    if (typeof XLSX === 'undefined') {
+        alert('A biblioteca de leitura de Excel não carregou. Verifique sua conexão ou recarregue a página.');
+        return;
     }
 
-    salvarDadosLocal();
-    alert('Lançamento efetuado com sucesso!');
-    document.getElementById('extPessoa').value = '';
-    document.getElementById('extDescricao').value = '';
-    document.getElementById('extValor').value = '';
-    renderizarTudo();
+    const limitSelect = document.getElementById('excelImportLimit');
+    const limitValue = limitSelect ? limitSelect.value : 'ALL';
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const data = new Uint8Array(evt.target.result);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
+
+            let pagarEncontrados = [];
+            let receberEncontrados = [];
+
+            function parseValor(rawValor) {
+                if (rawValor === undefined || rawValor === null || rawValor === '') return 0;
+                if (typeof rawValor === 'number') return rawValor;
+                let strV = String(rawValor).replace(/R\$/gi, '').trim();
+                if (strV.includes(',') && strV.includes('.')) {
+                    if (strV.indexOf('.') < strV.indexOf(',')) {
+                        strV = strV.replace(/\./g, '').replace(',', '.');
+                    } else {
+                        strV = strV.replace(/,/g, '');
+                    }
+                } else if (strV.includes(',')) {
+                    strV = strV.replace(',', '.');
+                }
+                const num = parseFloat(strV);
+                return isNaN(num) ? 0 : num;
+            }
+
+            function parseExcelDate(val) {
+                if (!val) return new Date().toISOString().slice(0, 10);
+                if (val instanceof Date && !isNaN(val.getTime())) {
+                    const y = val.getUTCFullYear();
+                    const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+                    const d = String(val.getUTCDate()).padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                }
+                let str = String(val).trim();
+                if (!str) return new Date().toISOString().slice(0, 10);
+                if (str.includes(' ')) str = str.split(' ')[0].trim();
+                if (str.includes('T')) str = str.split('T')[0].trim();
+                if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+                if (str.includes('/')) {
+                    const parts = str.split('/');
+                    if (parts.length === 3) {
+                        let p1 = parseInt(parts[0], 10);
+                        let p2 = parseInt(parts[1], 10);
+                        let p3 = parseInt(parts[2], 10);
+                        if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+                            if (p3 < 100) p3 += 2000;
+                            if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
+                            if (p1 > 12) return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
+                            if (p2 > 12) return `${p3}-${String(p1).padStart(2, '0')}-${String(p2).padStart(2, '0')}`;
+                            return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
+                        }
+                    }
+                }
+                if (str.includes('-')) {
+                    const parts = str.split('-');
+                    if (parts.length === 3) {
+                        let p1 = parseInt(parts[0], 10);
+                        let p2 = parseInt(parts[1], 10);
+                        let p3 = parseInt(parts[2], 10);
+                        if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+                            if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
+                            if (p3 < 100) p3 += 2000;
+                            return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
+                        }
+                    }
+                }
+                return new Date().toISOString().slice(0, 10);
+            }
+
+            // 1. Processar Aba "CONTAS A PAGAR"
+            const sheetPagarName = workbook.SheetNames.find(s => {
+                if (!s) return false;
+                const u = String(s).toUpperCase();
+                return u.includes('PAGAR') || u.includes('SAIDA') || u.includes('DESPESA') || u.includes('PAGAMENTO');
+            });
+
+            if (sheetPagarName) {
+                const sheetPagar = workbook.Sheets[sheetPagarName];
+                const rows = XLSX.utils.sheet_to_json(sheetPagar, { header: 1, cellDates: true, raw: true });
+
+                let headerIdx = -1;
+                for (let i = 0; i < Math.min(15, rows.length); i++) {
+                    if (!rows[i]) continue;
+                    const rStr = Array.from(rows[i]).map(c => String(c || '').toUpperCase()).join(' ');
+                    if (rStr.includes('FORNECEDOR') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('EMPRESA')) {
+                        headerIdx = i;
+                        break;
+                    }
+                }
+
+                if (headerIdx !== -1) {
+                    const headers = Array.from(rows[headerIdx]).map(h => String(h || '').trim().toUpperCase());
+                    const idxVenc = headers.findIndex(h => h && (h.includes('VENCIMENTO') || h.includes('DATA')));
+                    const idxForn = headers.findIndex(h => h && (h.includes('FORNECEDOR') || h.includes('EMPRESA') || h.includes('NOME') || h.includes('RECEBEDOR')));
+                    const idxDesc = headers.findIndex(h => h && (h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO')));
+                    const idxValor = headers.findIndex(h => h && h.includes('VALOR'));
+                    const idxStatus = headers.findIndex(h => h && (h.includes('STATUS') || h.includes('SITUAÇÃO')));
+                    const idxCC = headers.findIndex(h => h && (h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA')));
+
+                    for (let i = headerIdx + 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0) continue;
+
+                        const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
+                        const numValor = parseValor(rawValor);
+                        if (numValor === 0) continue;
+
+                        const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
+                        const vencFormated = parseExcelDate(rawVenc);
+                        const fornecedor = idxForn !== -1 && idxForn < row.length && row[idxForn] ? String(row[idxForn]).trim() : 'Fornecedor Importado';
+                        const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Lançamento Excel';
+                        const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
+                        const status = rawStatus.includes('PAG') ? 'PAGO' : 'PENDENTE';
+                        const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'ADMINISTRATIVO';
+
+                        let cc = 'Custos Fixos';
+                        if (rawCC.includes('PESS')) cc = 'Pessoal';
+                        else if (rawCC.includes('PEÇ') || rawCC.includes('PEC')) cc = 'Peças Novas';
+                        else if (rawCC.includes('ADM')) cc = 'Administrativo';
+
+                        pagarEncontrados.push({
+                            id: 'imp_p_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+                            vencimento: vencFormated,
+                            fornecedor: fornecedor,
+                            descricao: desc,
+                            valor: numValor,
+                            categoria: cc,
+                            status: status,
+                            dataPagamento: status === 'PAGO' ? vencFormated : '',
+                            tipoPagamento: 'Importado'
+                        });
+                    }
+                }
+            }
+
+            // 2. Processar Aba "CONTAS A RECEBER"
+            const sheetReceberName = workbook.SheetNames.find(s => {
+                if (!s) return false;
+                const u = String(s).toUpperCase();
+                return u.includes('RECEBER') || u.includes('ENTRADA') || u.includes('RECEITA') || u.includes('RECEBIMENTO');
+            });
+
+            if (sheetReceberName) {
+                const sheetReceber = workbook.Sheets[sheetReceberName];
+                const rows = XLSX.utils.sheet_to_json(sheetReceber, { header: 1, cellDates: true, raw: true });
+
+                let headerIdx = -1;
+                for (let i = 0; i < Math.min(15, rows.length); i++) {
+                    if (!rows[i]) continue;
+                    const rStr = Array.from(rows[i]).map(c => String(c || '').toUpperCase()).join(' ');
+                    if (rStr.includes('CLIENTE') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('NOME')) {
+                        headerIdx = i;
+                        break;
+                    }
+                }
+
+                if (headerIdx !== -1) {
+                    const headers = Array.from(rows[headerIdx]).map(h => String(h || '').trim().toUpperCase());
+                    const idxVenc = headers.findIndex(h => h && (h.includes('VENCIMENTO') || h.includes('DATA')));
+                    const idxCli = headers.findIndex(h => h && (h.includes('CLIENTE') || h.includes('NOME') || h.includes('FORNECEDOR') || h.includes('EMPRESA')));
+                    const idxDesc = headers.findIndex(h => h && (h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO')));
+                    const idxValor = headers.findIndex(h => h && h.includes('VALOR'));
+                    const idxStatus = headers.findIndex(h => h && (h.includes('STATUS') || h.includes('SITUAÇÃO')));
+                    const idxCC = headers.findIndex(h => h && (h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA')));
+
+                    for (let i = headerIdx + 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length === 0) continue;
+
+                        const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
+                        const numValor = parseValor(rawValor);
+                        if (numValor === 0) continue;
+
+                        const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
+                        const vencFormated = parseExcelDate(rawVenc);
+                        const cliente = idxCli !== -1 && idxCli < row.length && row[idxCli] ? String(row[idxCli]).trim() : 'Cliente Importado';
+                        const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Recebimento Excel';
+                        const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
+                        const status = (rawStatus.includes('PAG') || rawStatus.includes('RECEB')) ? 'PAGO' : 'PENDENTE';
+                        const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'SERVIÇOS';
+
+                        let cc = 'Serviços';
+                        if (rawCC.includes('VEND')) cc = 'Vendas';
+                        else if (rawCC.includes('REP')) cc = 'Reparos';
+
+                        receberEncontrados.push({
+                            id: 'imp_r_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
+                            vencimento: vencFormated,
+                            cliente: cliente,
+                            descricao: desc,
+                            valor: numValor,
+                            categoria: cc,
+                            status: status,
+                            dataPagamento: status === 'PAGO' ? vencFormated : '',
+                            tipoPagamento: 'Importado'
+                        });
+                    }
+                }
+            }
+
+            // 3. Aplicar Limite de Registros
+            if (limitValue !== 'ALL') {
+                const lim = parseInt(limitValue, 10);
+                if (pagarEncontrados.length > lim) pagarEncontrados = pagarEncontrados.slice(-lim);
+                if (receberEncontrados.length > lim) receberEncontrados = receberEncontrados.slice(-lim);
+            }
+
+            // 4. Salvar na memória local/nuvem
+            contasPagar = [...garantirArray(contasPagar), ...pagarEncontrados];
+            contasReceber = [...garantirArray(contasReceber), ...receberEncontrados];
+
+            salvarDadosLocal();
+            renderizarTudo();
+
+            const txtModo = limitValue === 'ALL' ? 'Toda a planilha' : `Últimos ${limitValue} registros`;
+            alert(`Importação concluída com sucesso (${txtModo})!\n\n• Contas a Pagar importadas: ${pagarEncontrados.length}\n• Contas a Receber importadas: ${receberEncontrados.length}`);
+
+        } catch (err) {
+            console.error('Erro ao ler a planilha Excel:', err);
+            alert('Erro ao processar a planilha: ' + err.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
 }
 
+/* EXPORTAÇÃO DE BACKUP & CSV */
 function exportarBackupJSON() {
     const data = { contasPagar, contasReceber, estoque, exportDate: new Date().toISOString() };
     const jsonStr = JSON.stringify(data, null, 2);
@@ -960,6 +1153,7 @@ window.excluirReceber = excluirReceber;
 window.editarProduto = editarProduto;
 window.excluirProduto = excluirProduto;
 window.abrirModalMovimentacao = abrirModalMovimentacao;
+window.importarPlanilhaExcel = importarPlanilhaExcel;
 
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
@@ -974,7 +1168,7 @@ window.onclick = function(event) {
 document.addEventListener('DOMContentLoaded', () => {
     verificarSessao();
 });
-// Atualiza o painel automaticamente se alterar dados noutra aba do navegador
+
 window.addEventListener('storage', (event) => {
     if (['ricpower_pagar', 'ricpower_receber', 'ricpower_estoque'].includes(event.key)) {
         contasPagar = garantirArray(JSON.parse(localStorage.getItem('ricpower_pagar')));
