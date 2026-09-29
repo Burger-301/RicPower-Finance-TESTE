@@ -1,262 +1,586 @@
-// IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) OTIMIZADA E RESISTENTE A ERROS
-        function importarPlanilhaExcel(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RICPOWER FINANCE</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Bibliotecas externas (Chart.js, Firebase e SheetJS para Excel) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
 
-            if (typeof XLSX === 'undefined') {
-                alert('A biblioteca de leitura de Excel não carregou. Verifique sua conexão ou recarregue a página.');
-                return;
-            }
+    <!-- TELA DE LOGIN -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <div class="login-logo-text"><i class="fas fa-bolt"></i> RICPOWER</div>
+            </div>
+            <p class="login-subtitle">Gestão Financeira & Controle de Estoque</p>
+            <div id="loginAlert" class="login-alert" style="display:none;"></div>
+            <form onsubmit="realizarLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">E-mail</label>
+                    <input type="email" id="loginEmail" class="form-control" required placeholder="admin@richard.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Senha</label>
+                    <input type="password" id="loginSenha" class="form-control" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full mt-10">Entrar no Sistema</button>
+            </form>
+            <div class="login-footer">
+                <small onclick="preencherLoginDemo()" style="cursor:pointer; text-decoration:underline;">Preencher dados de acesso demo</small>
+            </div>
+        </div>
+    </div>
 
-            const limitSelect = document.getElementById('excelImportLimit');
-            const limitValue = limitSelect ? limitSelect.value : 'ALL';
+    <!-- TELA PRINCIPAL (APP) -->
+    <div id="appScreen" class="app-container" style="display:none;">
+        <aside class="sidebar">
+            <div>
+                <div class="logo">
+                    <div class="sidebar-logo-text"><i class="fas fa-bolt"></i> <span>RICPOWER</span></div>
+                </div>
+                <nav class="sidebar-nav">
+                    <a class="nav-link active" onclick="showTab('dashboard', this)"><i class="fas fa-chart-line"></i> <span>Dashboard</span></a>
+                    <a class="nav-link" onclick="showTab('pagar', this)"><i class="fas fa-arrow-circle-down text-danger"></i> <span>Contas a Pagar</span></a>
+                    <a class="nav-link" onclick="showTab('receber', this)"><i class="fas fa-arrow-circle-up text-success"></i> <span>Contas a Receber</span></a>
+                    <a class="nav-link" onclick="showTab('estoque', this)"><i class="fas fa-boxes"></i> <span>Estoque / Peças</span></a>
+                    <a class="nav-link" onclick="showTab('dre', this)"><i class="fas fa-file-invoice-dollar"></i> <span>DRE</span></a>
+                    <a class="nav-link" onclick="showTab('extensao', this)"><i class="fas fa-plug"></i> <span>Integrações / Excel</span></a>
+                </nav>
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-status">
+                    <i class="fas fa-user-circle"></i> <span id="userEmailDisplay">admin@richard.com</span>
+                </div>
+                <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+            </div>
+        </aside>
 
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const data = new Uint8Array(evt.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
+        <main class="main-content">
+            <header class="header">
+                <div>
+                    <h1 id="pageTitle">Visão Geral Financeira</h1>
+                    <div class="subtitle">Bem-vindo ao sistema Richard Finance</div>
+                </div>
 
-                    let pagarEncontrados = [];
-                    let receberEncontrados = [];
+                <!-- FILTRO DE PERÍODO -->
+                <div class="modern-filter-container">
+                    <button class="modern-filter-btn" onclick="toggleDateFilter()">
+                        <i class="far fa-calendar-alt"></i>
+                        <span id="currentPeriodText">Todos os Registros</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div id="dateFilterDropdown" class="modern-filter-dropdown">
+                        <div id="opt-todos" class="filter-option active-filter" onclick="selectPredefinedPeriod(this, 'Todos os Registros')">Todos os Registros</div>
+                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Este Mês')">Este Mês</div>
+                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Mês Passado')">Mês Passado</div>
+                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Últimos 3 Meses')">Últimos 3 Meses</div>
+                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Este Ano')">Este Ano</div>
+                        <div class="filter-custom-date">
+                            <h4>Personalizado</h4>
+                            <div class="date-range-inputs">
+                                <div class="date-input-group">
+                                    <label>Início</label>
+                                    <input type="date" id="dataInicioFiltro">
+                                </div>
+                                <div class="date-input-group">
+                                    <label>Fim</label>
+                                    <input type="date" id="dataFimFiltro">
+                                </div>
+                            </div>
+                            <div class="filter-actions">
+                                <button class="btn-filter btn-apply" onclick="aplicarFiltroPersonalizado()">Aplicar</button>
+                                <button class="btn-filter btn-clear" onclick="limparFiltro()">Limpar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
 
-                    function parseValor(rawValor) {
-                        if (rawValor === undefined || rawValor === null || rawValor === '') return 0;
-                        if (typeof rawValor === 'number') return rawValor;
-                        let strV = String(rawValor).replace(/R\$/gi, '').trim();
-                        if (strV.includes(',') && strV.includes('.')) {
-                            if (strV.indexOf('.') < strV.indexOf(',')) {
-                                strV = strV.replace(/\./g, '').replace(',', '.');
-                            } else {
-                                strV = strV.replace(/,/g, '');
-                            }
-                        } else if (strV.includes(',')) {
-                            strV = strV.replace(',', '.');
-                        }
-                        const num = parseFloat(strV);
-                        return isNaN(num) ? 0 : num;
-                    }
+            <!-- ABA DASHBOARD -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="cards-grid">
+                    <div class="card income">
+                        <div class="card-info">
+                            <h3 id="cardReceberLabel">A Receber</h3>
+                            <h2 id="dashTotalReceber">R$ 0,00</h2>
+                        </div>
+                        <i class="fas fa-arrow-down card-icon"></i>
+                    </div>
+                    <div class="card expense">
+                        <div class="card-info">
+                            <h3 id="cardPagarLabel">A Pagar</h3>
+                            <h2 id="dashTotalPagar">R$ 0,00</h2>
+                        </div>
+                        <i class="fas fa-arrow-up card-icon"></i>
+                    </div>
+                    <div class="card balance">
+                        <div class="card-info">
+                            <h3>Saldo Previsto</h3>
+                            <h2 id="dashSaldoPrevisto">R$ 0,00</h2>
+                        </div>
+                        <i class="fas fa-wallet card-icon"></i>
+                    </div>
+                    <div class="card stock">
+                        <div class="card-info">
+                            <h3>Valor em Estoque</h3>
+                            <h2 id="dashValorEstoque">R$ 0,00</h2>
+                        </div>
+                        <i class="fas fa-boxes card-icon"></i>
+                    </div>
+                </div>
 
-                    function parseExcelDate(val) {
-                        if (!val) return new Date().toISOString().slice(0, 10);
-                        
-                        if (val instanceof Date && !isNaN(val.getTime())) {
-                            const y = val.getUTCFullYear();
-                            const m = String(val.getUTCMonth() + 1).padStart(2, '0');
-                            const d = String(val.getUTCDate()).padStart(2, '0');
-                            return `${y}-${m}-${d}`;
-                        }
+                <div class="dashboard-grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><i class="fas fa-exchange-alt"></i> Fluxo de Caixa Projetado</div>
+                        </div>
+                        <canvas id="fluxoCaixaChart" height="120"></canvas>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><i class="fas fa-chart-pie"></i> Saídas por Categoria</div>
+                        </div>
+                        <canvas id="centroCustoChart" height="180"></canvas>
+                    </div>
+                </div>
 
-                        let str = String(val).trim();
-                        if (!str) return new Date().toISOString().slice(0, 10);
+                <div class="dashboard-grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><i class="fas fa-clock"></i> Próximos Vencimentos</div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Vencimento</th>
+                                        <th>Tipo</th>
+                                        <th>Pessoa/Empresa</th>
+                                        <th>Valor</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableProximosVencimentos"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><i class="fas fa-exclamation-triangle text-danger"></i> Alertas de Estoque Baixo</div>
+                        </div>
+                        <div id="painelAlertasEstoque" class="alerts-container"></div>
+                    </div>
+                </div>
+            </section>
 
-                        if (str.includes(' ')) str = str.split(' ')[0].trim();
-                        if (str.includes('T')) str = str.split('T')[0].trim();
+            <!-- ABA CONTAS A PAGAR -->
+            <section id="tab-pagar" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="searchPagar" class="form-control" placeholder="Buscar fornecedor, descrição..." onkeyup="renderizarContasPagar()">
+                            </div>
+                            <select id="filterStatusPagar" class="filter-select" onchange="renderizarContasPagar()">
+                                <option value="todos">Todos os Status</option>
+                                <option value="pendente">Pendente</option>
+                                <option value="pago">Pago</option>
+                                <option value="atrasado">Atrasado</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="abrirModalSaida()"><i class="fas fa-plus"></i> Nova Conta a Pagar</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Vencimento</th>
+                                    <th>Fornecedor</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                    <th>Categoria</th>
+                                    <th>Status</th>
+                                    <th>Data Pagamento</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableContasPagar"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-                        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+            <!-- ABA CONTAS A RECEBER -->
+            <section id="tab-receber" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="searchReceber" class="form-control" placeholder="Buscar cliente, descrição..." onkeyup="renderizarContasReceber()">
+                            </div>
+                            <select id="filterStatusReceber" class="filter-select" onchange="renderizarContasReceber()">
+                                <option value="todos">Todos os Status</option>
+                                <option value="pendente">Pendente</option>
+                                <option value="pago">Pago</option>
+                                <option value="atrasado">Atrasado</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="abrirModalEntrada()"><i class="fas fa-plus"></i> Nova Conta a Receber</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Vencimento</th>
+                                    <th>Cliente</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                    <th>Categoria</th>
+                                    <th>Status</th>
+                                    <th>Data Pagamento</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableContasReceber"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-                        if (str.includes('/')) {
-                            const parts = str.split('/');
-                            if (parts.length === 3) {
-                                let p1 = parseInt(parts[0], 10);
-                                let p2 = parseInt(parts[1], 10);
-                                let p3 = parseInt(parts[2], 10);
-                                if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
-                                    if (p3 < 100) p3 += 2000;
-                                    if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
-                                    if (p1 > 12) return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
-                                    if (p2 > 12) return `${p3}-${String(p1).padStart(2, '0')}-${String(p2).padStart(2, '0')}`;
-                                    return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
-                                }
-                            }
-                        }
+            <!-- ABA ESTOQUE -->
+            <section id="tab-estoque" class="tab-content">
+                <div class="cards-grid">
+                    <div class="card stock">
+                        <div class="card-info">
+                            <h3>Total Investido em Peças</h3>
+                            <h2 id="stkPatrimonioTotal">R$ 0,00</h2>
+                        </div>
+                    </div>
+                    <div class="card balance">
+                        <div class="card-info">
+                            <h3>Total de SKUs</h3>
+                            <h2 id="stkTotalSkus">0</h2>
+                        </div>
+                    </div>
+                    <div class="card expense">
+                        <div class="card-info">
+                            <h3>Itens em Alerta / Zera</h3>
+                            <h2 id="stkTotalAlertas">0</h2>
+                        </div>
+                    </div>
+                </div>
 
-                        if (str.includes('-')) {
-                            const parts = str.split('-');
-                            if (parts.length === 3) {
-                                let p1 = parseInt(parts[0], 10);
-                                let p2 = parseInt(parts[1], 10);
-                                let p3 = parseInt(parts[2], 10);
-                                if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
-                                    if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
-                                    if (p3 < 100) p3 += 2000;
-                                    return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
-                                }
-                            }
-                        }
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="searchEstoque" class="form-control" placeholder="Buscar por SKU ou Nome..." onkeyup="renderizarEstoque()">
+                            </div>
+                            <select id="filterAlertaEstoque" class="filter-select" onchange="renderizarEstoque()">
+                                <option value="todos">Todos os Produtos</option>
+                                <option value="alerta">Em Alerta de Estoque</option>
+                                <option value="zerado">Esgotados (Qtd 0)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="abrirModalProduto()"><i class="fas fa-plus"></i> Cadastrar Peça/Item</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Nome do Item</th>
+                                    <th>Categoria</th>
+                                    <th>Qtd Atual</th>
+                                    <th>Qtd Mín.</th>
+                                    <th>Custo Un.</th>
+                                    <th>Venda Un.</th>
+                                    <th>Margem</th>
+                                    <th>Subtotal Custo</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableEstoque"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-                        return new Date().toISOString().slice(0, 10);
-                    }
+            <!-- ABA DRE -->
+            <section id="tab-dre" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><i class="fas fa-file-alt"></i> DRE - Demonstrativo do Resultado do Exercício</div>
+                        <span class="badge badge-accent" id="drePeriodoText">Todos os Registros</span>
+                    </div>
+                    <div class="dre-container">
+                        <div class="dre-row highlight-bold">
+                            <span>(+) RECEITA BRUTA DE VENDAS / SERVIÇOS</span>
+                            <span id="dreReceitaBruta">R$ 0,00</span>
+                        </div>
+                        <div class="dre-row text-sub">
+                            <span>(-) CUSTO DAS MERCADORIAS/PEÇAS VENDIDAS (CMV)</span>
+                            <span id="dreCMV" class="text-danger">- R$ 0,00</span>
+                        </div>
+                        <div class="dre-row highlight-green">
+                            <span>(=) RESULTADO BRUTO (LUCRO BRUTO)</span>
+                            <span id="dreLucroBruto">R$ 0,00</span>
+                        </div>
+                        <div class="dre-row text-sub">
+                            <span>(-) DESPESAS OPERACIONAIS / CUSTOS FIXOS</span>
+                            <span id="dreDespesasOp" class="text-danger">- R$ 0,00</span>
+                        </div>
+                        <div class="dre-row highlight-accent">
+                            <span>(=) RESULTADO LÍQUIDO DO PERÍODO</span>
+                            <span id="dreResultadoLiquido" style="font-size: 18px;">R$ 0,00</span>
+                        </div>
+                        <div class="dre-footer">
+                            <strong>Margem Líquida Projetada: </strong><span id="dreMargemLiquida">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-                    // 1. Processar Aba "CONTAS A PAGAR"
-                    const sheetPagarName = workbook.SheetNames.find(s => {
-                        if (!s) return false;
-                        const u = String(s).toUpperCase();
-                        return u.includes('PAGAR') || u.includes('SAIDA') || u.includes('DESPESA') || u.includes('PAGAMENTO');
-                    });
+            <!-- ABA INTEGRAÇÕES E IMPORTAÇÃO EXCEL -->
+            <section id="tab-extensao" class="tab-content">
+                <div class="dashboard-grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><i class="fas fa-file-excel text-success"></i> Importação de Planilha Excel (.xlsx)</div>
+                        </div>
+                        <div class="form-group mb-15">
+                            <label class="form-label">Limite de Importação</label>
+                            <select id="excelImportLimit" class="form-control">
+                                <option value="ALL">Toda a planilha (Todos os registros)</option>
+                                <option value="50">Últimos 50 registros</option>
+                                <option value="100">Últimos 100 registros</option>
+                                <option value="200">Últimos 200 registros</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-15">
+                            <label class="form-label">Selecione o arquivo Excel</label>
+                            <input type="file" id="fileExcelInput" class="form-control" accept=".xlsx, .xls" onchange="importarPlanilhaExcel(event)">
+                        </div>
+                        <p class="subtitle"><i class="fas fa-info-circle"></i> O leitor automático processa abas nomeadas como "PAGAR/SAIDA" e "RECEBER/ENTRADA".</p>
+                    </div>
 
-                    if (sheetPagarName) {
-                        const sheetPagar = workbook.Sheets[sheetPagarName];
-                        const rows = XLSX.utils.sheet_to_json(sheetPagar, { header: 1, cellDates: true, raw: true });
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div class="panel-title"><i class="fas fa-database"></i> Backup & Exportação Manual</div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <button class="btn btn-secondary btn-full" onclick="exportarBackupJSON()"><i class="fas fa-download"></i> Baixar Backup do Sistema (JSON)</button>
+                            <label class="btn btn-primary btn-full" style="text-align:center; cursor:pointer;">
+                                <i class="fas fa-upload"></i> Restaurar Backup JSON
+                                <input type="file" accept=".json" style="display:none;" onchange="importarBackupJSON(event)">
+                            </label>
+                            <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
+                            <button class="btn btn-success btn-full" onclick="exportarCSV('pagar')"><i class="fas fa-file-csv"></i> Exportar Contas a Pagar (CSV)</button>
+                            <button class="btn btn-success btn-full" onclick="exportarCSV('receber')"><i class="fas fa-file-csv"></i> Exportar Contas a Receber (CSV)</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
-                        let headerIdx = -1;
-                        for (let i = 0; i < Math.min(15, rows.length); i++) {
-                            if (!rows[i]) continue;
-                            const rStr = Array.from(rows[i]).map(c => String(c || '').toUpperCase()).join(' ');
-                            if (rStr.includes('FORNECEDOR') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('EMPRESA')) {
-                                headerIdx = i;
-                                break;
-                            }
-                        }
+    <!-- MODAIS DE CADASTRO -->
+    <!-- Modal Saída (A Pagar) -->
+    <div id="modalSaida" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="fecharModal('modalSaida')">&times;</span>
+            <h2 class="modal-title">Lançamento de Conta a Pagar</h2>
+            <form id="formSaida" onsubmit="salvarContaPagar(event)">
+                <input type="hidden" id="pagId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Fornecedor/Empresa</label>
+                        <input type="text" id="pagFornecedor" class="form-control" required placeholder="Ex: RGE Energia">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Valor (R$)</label>
+                        <input type="number" step="0.01" id="pagValor" class="form-control" required placeholder="0.00">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" id="pagDescricao" class="form-control" required placeholder="Ex: Conta referente ao mês">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data de Vencimento</label>
+                        <input type="date" id="pagVencimento" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoria / Centro de Custo</label>
+                        <select id="pagCategoria" class="form-control">
+                            <option value="Custos Fixos">Custos Fixos</option>
+                            <option value="Peças Novas">Peças Novas</option>
+                            <option value="Administrativo">Administrativo</option>
+                            <option value="Pessoal">Pessoal</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select id="pagStatus" class="form-control">
+                            <option value="PENDENTE">PENDENTE</option>
+                            <option value="PAGO">PAGO</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data de Pagamento</label>
+                        <input type="date" id="pagDataPagamento" class="form-control">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Forma de Pagamento</label>
+                        <select id="pagTipoPagamento" class="form-control">
+                            <option value="PIX">PIX</option>
+                            <option value="Boleto">Boleto</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Transferência">Transferência</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full mt-20">Salvar Registro</button>
+            </form>
+        </div>
+    </div>
 
-                        if (headerIdx !== -1) {
-                            const headers = Array.from(rows[headerIdx]).map(h => String(h || '').trim().toUpperCase());
-                            
-                            const idxVenc = headers.findIndex(h => h && (h.includes('VENCIMENTO') || h.includes('DATA')));
-                            const idxForn = headers.findIndex(h => h && (h.includes('FORNECEDOR') || h.includes('EMPRESA') || h.includes('NOME') || h.includes('RECEBEDOR')));
-                            const idxDesc = headers.findIndex(h => h && (h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO')));
-                            const idxValor = headers.findIndex(h => h && h.includes('VALOR'));
-                            const idxStatus = headers.findIndex(h => h && (h.includes('STATUS') || h.includes('SITUAÇÃO')));
-                            const idxCC = headers.findIndex(h => h && (h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA')));
+    <!-- Modal Entrada (A Receber) -->
+    <div id="modalEntrada" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="fecharModal('modalEntrada')">&times;</span>
+            <h2 class="modal-title">Lançamento de Conta a Receber</h2>
+            <form id="formEntrada" onsubmit="salvarContaReceber(event)">
+                <input type="hidden" id="entId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Cliente / Pagador</label>
+                        <input type="text" id="entCliente" class="form-control" required placeholder="Ex: João da Silva">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Valor (R$)</label>
+                        <input type="number" step="0.01" id="entValor" class="form-control" required placeholder="0.00">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Descrição</label>
+                        <input type="text" id="entDescricao" class="form-control" required placeholder="Ex: Reparo de GPU">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data de Vencimento</label>
+                        <input type="date" id="entVencimento" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoria</label>
+                        <select id="entCategoria" class="form-control">
+                            <option value="Reparos">Reparos</option>
+                            <option value="Peças Novas">Peças Novas</option>
+                            <option value="Serviços">Serviços</option>
+                            <option value="Vendas">Vendas</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select id="entStatus" class="form-control">
+                            <option value="PENDENTE">PENDENTE</option>
+                            <option value="PAGO">PAGO</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data de Pagamento</label>
+                        <input type="date" id="entDataPagamento" class="form-control">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Forma de Pagamento</label>
+                        <select id="entTipoPagamento" class="form-control">
+                            <option value="PIX">PIX</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                            <option value="Transferência">Transferência</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full mt-20">Salvar Registro</button>
+            </form>
+        </div>
+    </div>
 
-                            for (let i = headerIdx + 1; i < rows.length; i++) {
-                                const row = rows[i];
-                                if (!row || row.length === 0) continue;
+    <!-- Modal Produto/Estoque -->
+    <div id="modalProduto" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="fecharModal('modalProduto')">&times;</span>
+            <h2 class="modal-title">Cadastro de Peça / Produto</h2>
+            <form id="formProduto" onsubmit="salvarProduto(event)">
+                <input type="hidden" id="prodId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Código SKU</label>
+                        <input type="text" id="prodSku" class="form-control" required placeholder="Ex: PEC-001">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categoria</label>
+                        <input type="text" id="prodCategoria" class="form-control" required placeholder="Ex: Componentes">
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Nome do Produto/Peça</label>
+                        <input type="text" id="prodNome" class="form-control" required placeholder="Ex: Chip Mosfet VRM">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Qtd Atual</label>
+                        <input type="number" id="prodQtd" class="form-control" required placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Qtd Mínima (Alerta)</label>
+                        <input type="number" id="prodQtdMin" class="form-control" required placeholder="5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Preço de Custo (R$)</label>
+                        <input type="number" step="0.01" id="prodPrecoCusto" class="form-control" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Preço de Venda (R$)</label>
+                        <input type="number" step="0.01" id="prodPrecoVenda" class="form-control" required placeholder="0.00">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full mt-20">Salvar Produto</button>
+            </form>
+        </div>
+    </div>
 
-                                const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
-                                const numValor = parseValor(rawValor);
-                                if (numValor === 0) continue;
+    <!-- Modal Movimentação de Estoque -->
+    <div id="modalMovimentacao" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="fecharModal('modalMovimentacao')">&times;</span>
+            <h2 class="modal-title">Movimentação de Estoque</h2>
+            <p id="movItemInfo" class="mb-15 text-accent font-bold"></p>
+            <form onsubmit="salvarMovimentacaoEstoque(event)">
+                <input type="hidden" id="movProdId">
+                <div class="form-group">
+                    <label class="form-label">Tipo de Movimentação</label>
+                    <select id="movTipo" class="form-control">
+                        <option value="ENTRADA">ENTRADA (+)</option>
+                        <option value="SAIDA">SAÍDA (-)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Quantidade</label>
+                    <input type="number" id="movQtd" class="form-control" min="1" required placeholder="1">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full mt-20">Confirmar Movimentação</button>
+            </form>
+        </div>
+    </div>
 
-                                const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
-                                const vencFormated = parseExcelDate(rawVenc);
-
-                                const fornecedor = idxForn !== -1 && idxForn < row.length && row[idxForn] ? String(row[idxForn]).trim() : 'Fornecedor Importado';
-                                const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Lançamento Excel';
-                                const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
-                                const status = rawStatus.includes('PAG') ? 'PAGO' : 'PENDENTE';
-                                const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'ADMINISTRATIVO';
-
-                                let cc = 'ADMINISTRATIVO';
-                                if (rawCC.includes('PESS')) cc = 'PESSOAL';
-                                else if (rawCC.includes('PEÇ') || rawCC.includes('PEC')) cc = 'PEÇAS';
-
-                                pagarEncontrados.push({
-                                    fornecedor: fornecedor,
-                                    desc: desc,
-                                    valor: numValor,
-                                    venc: vencFormated,
-                                    status: status,
-                                    cc: cc,
-                                    fixa: false
-                                });
-                            }
-                        }
-                    }
-
-                    // 2. Processar Aba "CONTAS A RECEBER"
-                    const sheetReceberName = workbook.SheetNames.find(s => {
-                        if (!s) return false;
-                        const u = String(s).toUpperCase();
-                        return u.includes('RECEBER') || u.includes('ENTRADA') || u.includes('RECEITA') || u.includes('RECEBIMENTO');
-                    });
-
-                    if (sheetReceberName) {
-                        const sheetReceber = workbook.Sheets[sheetReceberName];
-                        const rows = XLSX.utils.sheet_to_json(sheetReceber, { header: 1, cellDates: true, raw: true });
-
-                        let headerIdx = -1;
-                        for (let i = 0; i < Math.min(15, rows.length); i++) {
-                            if (!rows[i]) continue;
-                            const rStr = Array.from(rows[i]).map(c => String(c || '').toUpperCase()).join(' ');
-                            if (rStr.includes('CLIENTE') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('NOME')) {
-                                headerIdx = i;
-                                break;
-                            }
-                        }
-
-                        if (headerIdx !== -1) {
-                            const headers = Array.from(rows[headerIdx]).map(h => String(h || '').trim().toUpperCase());
-                            
-                            const idxVenc = headers.findIndex(h => h && (h.includes('VENCIMENTO') || h.includes('DATA')));
-                            const idxCli = headers.findIndex(h => h && (h.includes('CLIENTE') || h.includes('NOME') || h.includes('FORNECEDOR') || h.includes('EMPRESA')));
-                            const idxDesc = headers.findIndex(h => h && (h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO')));
-                            const idxValor = headers.findIndex(h => h && h.includes('VALOR'));
-                            const idxStatus = headers.findIndex(h => h && (h.includes('STATUS') || h.includes('SITUAÇÃO')));
-                            const idxCC = headers.findIndex(h => h && (h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA')));
-
-                            for (let i = headerIdx + 1; i < rows.length; i++) {
-                                const row = rows[i];
-                                if (!row || row.length === 0) continue;
-
-                                const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
-                                const numValor = parseValor(rawValor);
-                                if (numValor === 0) continue;
-
-                                const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
-                                const vencFormated = parseExcelDate(rawVenc);
-
-                                const cliente = idxCli !== -1 && idxCli < row.length && row[idxCli] ? String(row[idxCli]).trim() : 'Cliente Importado';
-                                const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Recebimento Excel';
-                                const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
-                                const status = (rawStatus.includes('PAG') || rawStatus.includes('RECEB')) ? 'PAGO' : 'PENDENTE';
-                                const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'SERVIÇOS';
-
-                                let cc = 'SERVIÇOS';
-                                if (rawCC.includes('VEND')) cc = 'VENDAS';
-                                else if (rawCC.includes('SERV')) cc = 'SERVIÇOS';
-
-                                receberEncontrados.push({
-                                    cliente: cliente,
-                                    desc: desc,
-                                    valor: numValor,
-                                    venc: vencFormated,
-                                    status: status,
-                                    cc: cc
-                                });
-                            }
-                        }
-                    }
-
-                    // 3. Aplicar Filtro de Limite de Registros
-                    if (limitValue !== 'ALL') {
-                        const lim = parseInt(limitValue, 10);
-                        if (pagarEncontrados.length > lim) pagarEncontrados = pagarEncontrados.slice(-lim);
-                        if (receberEncontrados.length > lim) receberEncontrados = receberEncontrados.slice(-lim);
-                    }
-
-                    // 4. Inserir Dados sem apagar o histórico
-                    let countPagar = 0;
-                    let countReceber = 0;
-
-                    pagarEncontrados.forEach(itemData => {
-                        const newId = 'imp_p_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
-                        if (isFirebaseConnected && db) {
-                            db.collection("pagar").doc(newId).set(itemData);
-                        } else {
-                            dbPagar.push({ id: newId, ...itemData });
-                        }
-                        countPagar++;
-                    });
-
-                    receberEncontrados.forEach(itemData => {
-                        const newId = 'imp_r_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
-                        if (isFirebaseConnected && db) {
-                            db.collection("receber").doc(newId).set(itemData);
-                        } else {
-                            dbReceber.push({ id: newId, ...itemData });
-                        }
-                        countReceber++;
-                    });
-
-                    carregarDados();
-                    
-                    const txtModo = limitValue === 'ALL' ? 'Toda a planilha' : `Últimos ${limitValue} registros`;
-                    alert(`Importação concluída com sucesso (${txtModo})!\n\n• Contas a Pagar importadas: ${countPagar}\n• Contas a Receber importadas: ${countReceber}`);
-
-                } catch (err) {
-                    console.error('Erro ao ler a planilha Excel:', err);
-                    alert('Erro ao processar a planilha: ' + err.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
+    <!-- SCRIPT PRINCIPAL DO SISTEMA -->
+    <script src="script.js"></script>
+</body>
+</html>
