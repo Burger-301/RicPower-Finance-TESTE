@@ -48,27 +48,17 @@ body {
 
 .login-logo {
     text-align: center;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
+/* AUMENTADO: Logo na tela de login */
 .login-logo-img {
-    max-width: 220px;
+    max-width: 280px; /* Aumentado de 220px para 280px */
+    width: 100%;
     height: auto;
     display: block;
     margin: 0 auto;
 }
-
-.login-logo-text {
-    font-size: 28px;
-    font-weight: 800;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-.login-logo-text i { color: var(--accent-color); }
 
 .login-subtitle {
     text-align: center;
@@ -135,29 +125,19 @@ body {
 }
 
 .logo {
-    padding: 0 20px;
+    padding: 0 15px;
     margin-bottom: 30px;
     text-align: center;
 }
 
+/* AUMENTADO: Logo na Sidebar / Menu lateral */
 .sidebar-logo-img {
-    max-height: 45px;
+    max-height: 65px; /* Aumentado de 45px para 65px */
+    max-width: 90%;
     width: auto;
     display: block;
     margin: 0 auto;
 }
-
-.sidebar-logo-text {
-    font-size: 22px;
-    font-weight: bold;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.sidebar-logo-text i { color: var(--accent-color); }
 
 .sidebar-nav {
     display: flex;
@@ -187,15 +167,6 @@ body {
 .sidebar-footer {
     padding: 20px 25px;
     border-top: 1px solid rgba(255,255,255,0.1);
-}
-
-.user-status {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 13px;
-    color: #bbb;
-    margin-bottom: 12px;
 }
 
 .btn-logout {
@@ -370,7 +341,7 @@ th { background-color: #f9fafb; color: #6b7280; font-weight: 600; text-transform
 .badge-success { background-color: #def7ec; color: var(--success-color); }
 .category-badge { background-color: #f1f2f6; color: #2f3542; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; border-left: 3px solid var(--accent-color); }
 
-/* BOTÕES E BOTÕES DE AÇÃO (`.btn-action`) */
+/* BOTÕES */
 .btn { padding: 9px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
 .btn-primary { background-color: var(--accent-color); color: var(--primary-color); }
 .btn-primary:hover { background-color: var(--accent-hover); }
@@ -383,7 +354,6 @@ th { background-color: #f9fafb; color: #6b7280; font-weight: 600; text-transform
 .btn-sm { padding: 6px 12px; font-size: 12px; }
 .btn-full { width: 100%; }
 
-/* Botões de Ação na Tabela */
 .btn-action { 
     padding: 6px 10px; 
     border-radius: 6px; 
@@ -416,10 +386,6 @@ th { background-color: #f9fafb; color: #6b7280; font-weight: 600; text-transform
 .dre-row.highlight-accent { background-color: #fff9d6; border: 2px solid var(--accent-color); }
 .dre-footer { margin-top: 15px; text-align: right; font-size: 15px; color: #555; }
 
-/* EXTENSÃO CHROME POPUP SIMULATOR */
-.chrome-popup-simulator { background-color: #ffffff; border: 2px solid var(--primary-color); border-radius: 10px; padding: 20px; max-width: 360px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-.popup-header { background-color: var(--primary-color); color: var(--accent-color); padding: 10px; margin: -20px -20px 15px -20px; border-radius: 8px 8px 0 0; font-weight: bold; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; }
-
 /* ALERTA DE ESTOQUE PAINEL */
 .alerts-container { display: flex; flex-direction: column; gap: 10px; }
 .alert-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; background-color: #fff5f5; border-left: 4px solid var(--danger-color); border-radius: 6px; font-size: 13px; }
@@ -436,22 +402,17 @@ th { background-color: #f9fafb; color: #6b7280; font-weight: 600; text-transform
 .text-danger { color: var(--danger-color); }
 .text-success { color: var(--success-color); }
 .text-accent { color: var(--accent-color); }
-.text-large { font-size: 20px; }
 .font-bold { font-weight: bold; }
-.mb-5 { margin-bottom: 5px; }
-.mb-10 { margin-bottom: 10px; }
 .mb-15 { margin-bottom: 15px; }
-.mb-20 { margin-bottom: 20px; }
 .mt-10 { margin-top: 10px; }
 .mt-20 { margin-top: 20px; }
-.ml-5 { margin-left: 5px; }
 
 /* RESPONSIVIDADE */
 @media (max-width: 768px) {
     .sidebar { width: 70px; padding: 15px 0; }
-    .logo span { display: none; }
+    .logo { padding: 0 5px; }
+    .sidebar-logo-img { max-height: 40px; }
     .nav-link span { display: none; }
-    .user-status span { display: none; }
     .main-content { margin-left: 70px; max-width: calc(100vw - 70px); padding: 15px; }
     .form-grid { grid-template-columns: 1fr; }
     .search-box { min-width: 100%; }
