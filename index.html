@@ -598,9 +598,21 @@
             <div class="panel">
                 <div class="panel-header"><h3 class="panel-title"><i class="fas fa-database"></i> Backup & Importação de Dados</h3></div>
                 <p style="margin-bottom: 20px; color: #666; font-size: 14px;">
-                    Importe sua planilha do Excel com Contas a Pagar e Contas a Receber, baixe uma cópia de segurança completa ou restaure arquivos JSON salvos.
+                    Importe sua planilha do Excel com Contas a Pagar e Contas a Receber, baixe uma cópia de segurança completa ou restaure arquivos JSON salvos. Os dados novos serão acrescentados mantendo os existentes salvos.
                 </p>
-                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 25px;">
+                
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 25px; align-items: center;">
+                    <!-- OPÇÃO DE SELEÇÃO DE REGISTROS -->
+                    <div style="display: flex; align-items: center; gap: 8px; background: #f8f9fa; padding: 6px 12px; border-radius: 6px; border: 1px solid #ddd;">
+                        <label style="font-size: 12px; font-weight: bold; color: #444;"><i class="fas fa-filter"></i> Importar:</label>
+                        <select id="excelImportLimit" class="filter-input" style="font-weight: bold; padding: 6px 10px;">
+                            <option value="ALL">Toda a Planilha (Todos os Registros)</option>
+                            <option value="10">Apenas os Últimos 10 Registros</option>
+                            <option value="20">Apenas os Últimos 20 Registros</option>
+                            <option value="30">Apenas os Últimos 30 Registros</option>
+                        </select>
+                    </div>
+
                     <label class="btn btn-excel" style="cursor: pointer; font-size: 13px; padding: 10px 18px;">
                         <i class="fas fa-file-excel" style="font-size: 16px;"></i> Importar Planilha Excel (.xlsx)
                         <input type="file" id="importExcelFile" accept=".xlsx, .xls" onchange="importarPlanilhaExcel(event)" style="display: none;">
@@ -612,6 +624,7 @@
                         <input type="file" id="importFile" accept=".json" onchange="importarBackupJSON(event)" style="display: none;">
                     </label>
                 </div>
+
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn btn-secondary" onclick="exportarCSV('pagar')"><i class="fas fa-file-csv"></i> Exportar Contas a Pagar (CSV)</button>
                     <button class="btn btn-secondary" onclick="exportarCSV('receber')"><i class="fas fa-file-csv"></i> Exportar Contas a Receber (CSV)</button>
@@ -1285,10 +1298,12 @@
             }
         }
 
-        // IMPORTAÇÃO DIRETA DE PLANILHA EXCEL (.XLSX)
+        // IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) COM MODO ADIÇÃO E LIMITE SELECIONÁVEL
         function importarPlanilhaExcel(e) {
             const file = e.target.files[0];
             if (!file) return;
+
+            const limitValue = document.getElementById('excelImportLimit') ? document.getElementById('excelImportLimit').value : 'ALL';
 
             const reader = new FileReader();
             reader.onload = function(evt) {
@@ -1296,8 +1311,8 @@
                     const data = new Uint8Array(evt.target.result);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-                    let countPagar = 0;
-                    let countReceber = 0;
+                    let pagarEncontrados = [];
+                    let receberEncontrados = [];
 
                     function parseExcelDate(val) {
                         if (!val) return new Date().toISOString().slice(0, 10);
@@ -1333,7 +1348,7 @@
                         return new Date().toISOString().slice(0, 10);
                     }
 
-                    // 1. Processar Aba "CONTAS A PAGAR"
+                    // 1. Processar e Extrair Aba "CONTAS A PAGAR"
                     const sheetPagarName = workbook.SheetNames.find(s => s.toUpperCase().includes('PAGAR'));
                     if (sheetPagarName) {
                         const sheetPagar = workbook.Sheets[sheetPagarName];
@@ -1390,8 +1405,7 @@
                                 else if (rawCC.includes('PEÇ') || rawCC.includes('PEC')) cc = 'PEÇAS';
                                 else if (rawCC.includes('ADMIN')) cc = 'ADMINISTRATIVO';
 
-                                const newId = 'imp_p_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-                                const itemData = {
+                                pagarEncontrados.push({
                                     fornecedor: fornecedor,
                                     desc: desc,
                                     valor: numValor,
@@ -1399,19 +1413,12 @@
                                     status: status,
                                     cc: cc,
                                     fixa: false
-                                };
-
-                                if (isFirebaseConnected && db) {
-                                    db.collection("pagar").doc(newId).set(itemData);
-                                } else {
-                                    dbPagar.push({ id: newId, ...itemData });
-                                }
-                                countPagar++;
+                                });
                             }
                         }
                     }
 
-                    // 2. Processar Aba "CONTAS A RECEBER"
+                    // 2. Processar e Extrair Aba "CONTAS A RECEBER"
                     const sheetReceberName = workbook.SheetNames.find(s => s.toUpperCase().includes('RECEBER'));
                     if (sheetReceberName) {
                         const sheetReceber = workbook.Sheets[sheetReceberName];
@@ -1467,30 +1474,58 @@
                                 if (rawCC.includes('VEND')) cc = 'VENDAS';
                                 else if (rawCC.includes('SERV')) cc = 'SERVIÇOS';
 
-                                const newId = 'imp_r_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-                                const itemData = {
+                                receberEncontrados.push({
                                     cliente: cliente,
                                     desc: desc,
                                     valor: numValor,
                                     venc: vencFormated,
                                     status: status,
                                     cc: cc
-                                };
-
-                                if (isFirebaseConnected && db) {
-                                    db.collection("receber").doc(newId).set(itemData);
-                                } else {
-                                    dbReceber.push({ id: newId, ...itemData });
-                                }
-                                countReceber++;
+                                });
                             }
                         }
                     }
 
+                    // 3. Aplicar Filtro de Quantidade de Registros (pega os últimos N da tabela se selecionado)
+                    if (limitValue !== 'ALL') {
+                        const lim = parseInt(limitValue, 10);
+                        if (pagarEncontrados.length > lim) {
+                            pagarEncontrados = pagarEncontrados.slice(-lim);
+                        }
+                        if (receberEncontrados.length > lim) {
+                            receberEncontrados = receberEncontrados.slice(-lim);
+                        }
+                    }
+
+                    // 4. Salvar Adicionando os Novos Lançamentos aos Já Existentes
+                    let countPagar = 0;
+                    let countReceber = 0;
+
+                    pagarEncontrados.forEach(itemData => {
+                        const newId = 'imp_p_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+                        if (isFirebaseConnected && db) {
+                            db.collection("pagar").doc(newId).set(itemData);
+                        } else {
+                            dbPagar.push({ id: newId, ...itemData });
+                        }
+                        countPagar++;
+                    });
+
+                    receberEncontrados.forEach(itemData => {
+                        const newId = 'imp_r_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+                        if (isFirebaseConnected && db) {
+                            db.collection("receber").doc(newId).set(itemData);
+                        } else {
+                            dbReceber.push({ id: newId, ...itemData });
+                        }
+                        countReceber++;
+                    });
+
                     carregarDados();
                     e.target.value = '';
 
-                    alert(`Importação da Planilha Excel concluída com sucesso!\n\n• Contas a Pagar importadas: ${countPagar}\n• Contas a Receber importadas: ${countReceber}`);
+                    const txtModo = limitValue === 'ALL' ? 'Toda a planilha' : `Últimos ${limitValue} registros`;
+                    alert(`Importação concluída com sucesso (${txtModo})!\n\n• Lançamentos a Pagar adicionados: ${countPagar}\n• Lançamentos a Receber adicionados: ${countReceber}\n\n* Os registros já existentes foram mantidos salvos intactos.`);
 
                 } catch (err) {
                     console.error('Erro ao ler a planilha Excel:', err);
