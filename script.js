@@ -257,22 +257,29 @@ function toggleSidebar() {
     if (overlay) overlay.classList.toggle('active');
 }
 
-function toggleDateFilter() {
+/* FILTRO DE DATAS GLOBAL */
+function toggleDateFilter(event) {
+    if (event && event.stopPropagation) event.stopPropagation();
     const dropdown = document.getElementById('dateFilterDropdown');
     if (dropdown) dropdown.classList.toggle('show');
 }
 
-function selecionarFiltroData(tipo, texto) {
+function selecionarFiltroData(tipo, texto, event) {
+    if (event && event.stopPropagation) event.stopPropagation();
     filtroDataAtivo = tipo;
     filtroTextoAtivo = texto;
     dataInicioCustom = '';
     dataFimCustom = '';
 
-    document.getElementById('currentPeriodText').innerText = texto;
-    document.querySelectorAll('.filter-option').forEach(el => el.classList.remove('active-filter'));
-    if (event && event.target) event.target.classList.add('active-filter');
+    const elText = document.getElementById('currentPeriodText');
+    if (elText) elText.innerText = texto;
 
-    document.getElementById('dateFilterDropdown').classList.remove('show');
+    document.querySelectorAll('.filter-option').forEach(el => el.classList.remove('active-filter'));
+    const target = event ? event.target : (window.event ? window.event.target : null);
+    if (target) target.classList.add('active-filter');
+
+    const dropdown = document.getElementById('dateFilterDropdown');
+    if (dropdown) dropdown.classList.remove('show');
     renderizarTudo();
 }
 
@@ -290,16 +297,19 @@ function aplicarDataPersonalizada() {
     dataFimCustom = dtF;
 
     const texto = `${formatarDataBR(dtI)} até ${formatarDataBR(dtF)}`;
-    document.getElementById('currentPeriodText').innerText = texto;
+    const elText = document.getElementById('currentPeriodText');
+    if (elText) elText.innerText = texto;
+
     document.querySelectorAll('.filter-option').forEach(el => el.classList.remove('active-filter'));
-    document.getElementById('dateFilterDropdown').classList.remove('show');
+    const dropdown = document.getElementById('dateFilterDropdown');
+    if (dropdown) dropdown.classList.remove('show');
 
     renderizarTudo();
 }
 
 function limparFiltroData() {
-    document.getElementById('dtInicio').value = '';
-    document.getElementById('dtFim').value = '';
+    if (document.getElementById('dtInicio')) document.getElementById('dtInicio').value = '';
+    if (document.getElementById('dtFim')) document.getElementById('dtFim').value = '';
     selecionarFiltroData('todos', 'Todos os Registros');
 }
 
@@ -889,7 +899,6 @@ function processarAbaExcel(sheetData, tipo, limiteDias = null) {
 
         if (!pessoa && !valor) continue;
 
-        // Se houver limite de dias, ignora o registro caso a data seja anterior à data limite
         if (dataCorte && dtVenc) {
             const dtObj = parseDateIso(dtVenc);
             if (dtObj && dtObj < dataCorte) {
@@ -927,8 +936,9 @@ function fecharModal(modalId) {
     if (modal) modal.style.display = 'none';
 }
 
+// FECHAR MODAL OU FILTRO DE DATA AO CLICAR FORA
 window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
+    if (event.target && event.target.classList && event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
     }
     if (!event.target.closest('.modern-filter-container')) {
