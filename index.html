@@ -6,7 +6,7 @@
     <title>RICPOWER FINANCE</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Bibliotecas externas (Chart.js, Firebase e SheetJS para Excel) -->
+    <!-- Bibliotecas externas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -25,7 +25,7 @@
             <form onsubmit="realizarLogin(event)">
                 <div class="form-group">
                     <label class="form-label">E-mail</label>
-                    <input type="email" id="loginEmail" class="form-control" required placeholder="admin@richard.com">
+                    <input type="email" id="loginEmail" class="form-control" required placeholder="Digite seu e-mail">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Senha</label>
@@ -34,7 +34,9 @@
                 <button type="submit" class="btn btn-primary btn-full mt-10">Entrar no Sistema</button>
             </form>
             <div class="login-footer">
-                <small onclick="preencherLoginDemo()" style="cursor:pointer; text-decoration:underline;">Preencher dados de acesso demo</small>
+                <small style="color: #888; font-size: 12px; letter-spacing: 0.5px;">
+                    Powered by <strong style="color: var(--accent-color);">CS Code Solutions</strong>
+                </small>
             </div>
         </div>
     </div>
@@ -56,8 +58,8 @@
                 </nav>
             </div>
             <div class="sidebar-footer">
-                <div class="user-status">
-                    <i class="fas fa-user-circle"></i> <span id="userEmailDisplay">admin@richard.com</span>
+                <div style="text-align: center; font-size: 11px; color: #888; margin-bottom: 12px;">
+                    Powered by <strong style="color: var(--accent-color);">CS Code Solutions</strong>
                 </div>
                 <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
             </div>
@@ -67,7 +69,7 @@
             <header class="header">
                 <div>
                     <h1 id="pageTitle">Visão Geral Financeira</h1>
-                    <div class="subtitle">Bem-vindo ao sistema Richard Finance</div>
+                    <div class="subtitle">Sistema de Gestão Richard Finance</div>
                 </div>
 
                 <!-- FILTRO DE PERÍODO -->
@@ -274,7 +276,7 @@
                     </div>
                     <div class="card expense">
                         <div class="card-info">
-                            <h3>Itens em Alerta / Zera</h3>
+                            <h3>Itens em Alerta / Zerados</h3>
                             <h2 id="stkTotalAlertas">0</h2>
                         </div>
                     </div>
@@ -395,17 +397,17 @@
         </main>
     </div>
 
-    <!-- MODAIS DE CADASTRO -->
+    <!-- MODAIS ESTRUTURADOS COM AÇÕES CLARAS -->
     <!-- Modal Saída (A Pagar) -->
     <div id="modalSaida" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalSaida')">&times;</span>
-            <h2 class="modal-title">Lançamento de Conta a Pagar</h2>
+            <h2 class="modal-title"><i class="fas fa-minus-circle text-danger"></i> Conta a Pagar</h2>
             <form id="formSaida" onsubmit="salvarContaPagar(event)">
                 <input type="hidden" id="pagId">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label class="form-label">Fornecedor/Empresa</label>
+                        <label class="form-label">Fornecedor / Empresa</label>
                         <input type="text" id="pagFornecedor" class="form-control" required placeholder="Ex: RGE Energia">
                     </div>
                     <div class="form-group">
@@ -450,7 +452,10 @@
                         </select>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-full mt-20">Salvar Registro</button>
+                <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModal('modalSaida')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Registro</button>
+                </div>
             </form>
         </div>
     </div>
@@ -459,7 +464,7 @@
     <div id="modalEntrada" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalEntrada')">&times;</span>
-            <h2 class="modal-title">Lançamento de Conta a Receber</h2>
+            <h2 class="modal-title"><i class="fas fa-plus-circle text-success"></i> Conta a Receber</h2>
             <form id="formEntrada" onsubmit="salvarContaReceber(event)">
                 <input type="hidden" id="entId">
                 <div class="form-grid">
@@ -509,7 +514,10 @@
                         </select>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-full mt-20">Salvar Registro</button>
+                <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModal('modalEntrada')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Registro</button>
+                </div>
             </form>
         </div>
     </div>
@@ -518,7 +526,7 @@
     <div id="modalProduto" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalProduto')">&times;</span>
-            <h2 class="modal-title">Cadastro de Peça / Produto</h2>
+            <h2 class="modal-title"><i class="fas fa-box"></i> Item do Estoque</h2>
             <form id="formProduto" onsubmit="salvarProduto(event)">
                 <input type="hidden" id="prodId">
                 <div class="form-grid">
@@ -531,7 +539,7 @@
                         <input type="text" id="prodCategoria" class="form-control" required placeholder="Ex: Componentes">
                     </div>
                     <div class="form-group full-width">
-                        <label class="form-label">Nome do Produto/Peça</label>
+                        <label class="form-label">Nome do Produto / Peça</label>
                         <input type="text" id="prodNome" class="form-control" required placeholder="Ex: Chip Mosfet VRM">
                     </div>
                     <div class="form-group">
@@ -551,7 +559,10 @@
                         <input type="number" step="0.01" id="prodPrecoVenda" class="form-control" required placeholder="0.00">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-full mt-20">Salvar Produto</button>
+                <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModal('modalProduto')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Produto</button>
+                </div>
             </form>
         </div>
     </div>
@@ -560,7 +571,7 @@
     <div id="modalMovimentacao" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalMovimentacao')">&times;</span>
-            <h2 class="modal-title">Movimentação de Estoque</h2>
+            <h2 class="modal-title"><i class="fas fa-exchange-alt"></i> Movimentar Estoque</h2>
             <p id="movItemInfo" class="mb-15 text-accent font-bold"></p>
             <form onsubmit="salvarMovimentacaoEstoque(event)">
                 <input type="hidden" id="movProdId">
@@ -575,7 +586,10 @@
                     <label class="form-label">Quantidade</label>
                     <input type="number" id="movQtd" class="form-control" min="1" required placeholder="1">
                 </div>
-                <button type="submit" class="btn btn-primary btn-full mt-20">Confirmar Movimentação</button>
+                <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModal('modalMovimentacao')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Confirmar Movimentação</button>
+                </div>
             </form>
         </div>
     </div>
