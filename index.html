@@ -130,7 +130,7 @@
         .modern-filter-container { position: relative; display: inline-block; }
         .modern-filter-btn { background-color: var(--primary-color); color: var(--accent-color); border: 2px solid var(--primary-color); padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .modern-filter-dropdown { display: none; position: absolute; top: 115%; right: 0; background-color: white; min-width: 280px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-radius: 10px; z-index: 1000; border: 1px solid #eee; overflow: hidden; }
-        .modern-filter-dropdown.show { display: block; }
+        .modern-filter-dropdown.show { display: block !important; }
         .filter-option { padding: 12px 20px; cursor: pointer; font-size: 14px; color: #333; border-bottom: 1px solid #f5f5f5; }
         .filter-option:hover, .filter-option.active-filter { background-color: #fff9d6; color: var(--primary-color); font-weight: bold; border-left: 4px solid var(--accent-color); }
         .filter-custom-date { padding: 15px 20px; background-color: #fcfcfc; border-top: 1px solid #eee; }
@@ -355,17 +355,17 @@
                 <button type="button" class="btn btn-secondary" onclick="carregarDados();"><i class="fas fa-sync-alt"></i> Atualizar</button>
 
                 <div class="modern-filter-container">
-                    <button class="modern-filter-btn" onclick="toggleDateFilter()" id="btnPeriodo">
+                    <button class="modern-filter-btn" onclick="toggleDateFilter(event)" id="btnPeriodo">
                         <i class="far fa-calendar-alt"></i>
                         <span id="currentPeriodText">Todos os Registros</span>
                         <i class="fas fa-chevron-down" style="font-size: 11px;"></i>
                     </button>
                     
                     <div class="modern-filter-dropdown" id="dateFilterDropdown">
-                        <div class="filter-option active-filter" onclick="selecionarFiltroData('todos', 'Todos os Registros')">Todos os Registros</div>
-                        <div class="filter-option" onclick="selecionarFiltroData('este-mes', 'Este Mês')">Este Mês</div>
-                        <div class="filter-option" onclick="selecionarFiltroData('mes-passado', 'Mês Passado')">Mês Passado</div>
-                        <div class="filter-option" onclick="selecionarFiltroData('este-ano', 'Este Ano')">Este Ano</div>
+                        <div class="filter-option active-filter" onclick="selecionarFiltroData('todos', 'Todos os Registros', event)">Todos os Registros</div>
+                        <div class="filter-option" onclick="selecionarFiltroData('este-mes', 'Este Mês', event)">Este Mês</div>
+                        <div class="filter-option" onclick="selecionarFiltroData('mes-passado', 'Mês Passado', event)">Mês Passado</div>
+                        <div class="filter-option" onclick="selecionarFiltroData('este-ano', 'Este Ano', event)">Este Ano</div>
                         
                         <div class="filter-custom-date">
                             <div class="date-range-inputs">
@@ -731,7 +731,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT DA APLICAÇÃO -->
-    <script src="script.js?v=4.0"></script>
+    <!-- SCRIPT DA APLICAÇÃO (VERSÃO v5.0 PARA LIMPAR CACHE) -->
+    <script src="script.js?v=5.0"></script>
 </body>
 </html>
