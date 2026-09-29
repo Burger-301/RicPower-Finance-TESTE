@@ -404,7 +404,6 @@ function renderizarGraficosSeguro(receberList, pagarList) {
     }
 }
 
-/* RENDERS COM BOTÕES NO PADRÃO ORIGINAL */
 function renderizarContasPagar() {
     const tbody = document.getElementById('tableContasPagar');
     if (!tbody) return;
