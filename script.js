@@ -1,4 +1,4 @@
-// CONFIGURAÇÃO DO FIREBASE COM REALTIME DATABASE
+// CONFIGURAÇÃO REALTIME DATABASE FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyAMIo-e1IQVvoVNvHfjyCvQ3mpmA8XpEZU",
   authDomain: "ricpower-finance-4312b.firebaseapp.com",
@@ -53,19 +53,16 @@ const getMesAtualStr = () => {
 const mesAtual = getMesAtualStr();
 
 let contasPagar = garantirArray(JSON.parse(localStorage.getItem('ricpower_pagar'))) || [
-    { id: '1', vencimento: `${mesAtual}-15`, fornecedor: 'RGE Energia', descricao: 'Conta de Energia Elétrica', valor: 1000.00, categoria: 'Custos Fixos', status: 'PAGO', dataPagamento: `${mesAtual}-15`, tipoPagamento: 'PIX' },
-    { id: '2', vencimento: `${mesAtual}-21`, fornecedor: 'AliExpress', descricao: 'Lote de Placas e Chips', valor: 850.00, categoria: 'Peças Novas', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'PIX' },
-    { id: '3', vencimento: `${mesAtual}-28`, fornecedor: 'Imobiliária', descricao: 'Aluguel do Galpão', valor: 1270.00, categoria: 'Custos Fixos', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'Transferência' }
+    { id: '1', vencimento: `${mesAtual}-15`, fornecedor: 'RGE Energia', descricao: 'Conta de Energia Elétrica', valor: 1000.00, categoria: 'Custos Fixos', status: 'PAGO', dataPagamento: `${mesAtual}-15`, tipoPagamento: 'PIX', fixa: true },
+    { id: '2', vencimento: `${mesAtual}-21`, fornecedor: 'AliExpress', descricao: 'Lote de Placas e Chips', valor: 850.00, categoria: 'Peças Novas', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'PIX', fixa: false }
 ];
 
 let contasReceber = garantirArray(JSON.parse(localStorage.getItem('ricpower_receber'))) || [
-    { id: '1', vencimento: `${mesAtual}-18`, cliente: 'Gabi', descricao: 'Reparo de GPU RTX 3080', valor: 450.00, categoria: 'Reparos', status: 'PAGO', dataPagamento: `${mesAtual}-18`, tipoPagamento: 'PIX' },
-    { id: '2', vencimento: `${mesAtual}-20`, cliente: 'Yuri', descricao: 'Troca de Telas e Peças', valor: 280.00, categoria: 'Peças Novas', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'PIX' }
+    { id: '1', vencimento: `${mesAtual}-18`, cliente: 'Gabi', descricao: 'Reparo de GPU RTX 3080', valor: 450.00, categoria: 'Reparos', status: 'PAGO', dataPagamento: `${mesAtual}-18`, tipoPagamento: 'PIX' }
 ];
 
 let estoque = garantirArray(JSON.parse(localStorage.getItem('ricpower_estoque'))) || [
-    { id: '1', sku: 'PEC-001', nome: 'Chip Mosfet VRM 40V', categoria: 'Componentes', qtd: 14, qtdMin: 10, precoCusto: 12.50, precoVenda: 45.00 },
-    { id: '2', sku: 'PEC-002', nome: 'Pasta Térmica Alta Condutividade', categoria: 'Insumos', qtd: 3, qtdMin: 5, precoCusto: 35.00, precoVenda: 90.00 }
+    { id: '1', sku: 'PEC-001', nome: 'Chip Mosfet VRM 40V', categoria: 'Componentes', qtd: 14, qtdMin: 10, precoCusto: 12.50, precoVenda: 45.00 }
 ];
 
 let filtroDataAtivo = 'Todos os Registros';
@@ -97,7 +94,7 @@ function salvarDadosLocal(skipNuvem = false) {
             contasPagar: contasPagar,
             contasReceber: contasReceber,
             estoque: estoque
-        }).catch(err => console.error("Erro ao enviar para o Firebase:", err));
+        }).catch(err => console.error("Erro no Firebase:", err));
     }
 }
 
@@ -133,7 +130,6 @@ function formatarDataBR(dataIso) {
     return `${day}/${month}/${year}`;
 }
 
-/* AUTENTICAÇÃO E SESSÃO */
 function realizarLogin(event) {
     if (event) event.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();
@@ -174,7 +170,6 @@ function iniciarAplicacao() {
     renderizarTudo();
 }
 
-/* NAVEGAÇÃO DE ABAS */
 function showTab(tabId, navElement) {
     document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
@@ -182,21 +177,22 @@ function showTab(tabId, navElement) {
     const selectedTab = document.getElementById(`tab-${tabId}`);
     if (selectedTab) selectedTab.classList.add('active');
 
-    if (navElement) navElement.classList.add('active');
+    if (navElement) {
+        navElement.classList.add('active');
+    }
 
     const titles = {
         'dashboard': 'Visão Geral Financeira',
-        'pagar': 'Contas a Pagar (Saídas)',
-        'receber': 'Contas a Receber (Entradas)',
-        'estoque': 'Controle de Estoque (Peças)',
-        'dre': 'Demonstrativo do Resultado do Exercício (DRE)',
+        'pagar': 'Gestão de Contas a Pagar',
+        'receber': 'Gestão de Contas a Receber',
+        'estoque': 'Controle de Peças e Produtos',
+        'dre': 'Demonstrativo do Resultado do Exercício (DRE Dual)',
         'extensao': 'Integrações & Importação'
     };
     document.getElementById('pageTitle').innerText = titles[tabId] || 'RICPOWER';
     renderizarTudo();
 }
 
-/* FILTROS DE PERÍODO */
 function toggleDateFilter() {
     document.getElementById('dateFilterDropdown').classList.toggle('show');
 }
@@ -281,7 +277,6 @@ function filtrarPorPeriodo(lista, campoData = 'vencimento') {
     });
 }
 
-/* RENDERIZAÇÃO E DASHBOARD */
 function renderizarTudo() {
     renderizarDashboard();
     renderizarContasPagar();
@@ -322,10 +317,10 @@ function renderizarDashboard() {
                 return `
                     <tr>
                         <td>${formatarDataBR(item.vencimento)}</td>
-                        <td><span class="badge ${item.tipoConta === 'ENTRADA' ? 'badge-success' : 'badge-danger'}">${item.tipoConta}</span></td>
+                        <td><span class="status-pill ${item.tipoConta === 'ENTRADA' ? 'status-pago' : 'status-atrasado'}">${item.tipoConta}</span></td>
                         <td><strong>${item.nome}</strong></td>
                         <td class="${item.tipoConta === 'ENTRADA' ? 'text-success' : 'text-danger'} font-bold">${formatarMoeda(item.valor)}</td>
-                        <td><span class="status ${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
+                        <td><span class="status-pill status-${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
                     </tr>
                 `;
             }).join('');
@@ -344,7 +339,7 @@ function renderizarDashboard() {
                         <strong>${p.sku} - ${p.nome}</strong><br>
                         <small>Qtd Atual: <b class="text-danger">${p.qtd}</b> / Mínima: ${p.qtdMin}</small>
                     </div>
-                    <span class="badge badge-danger">${p.qtd === 0 ? 'ESGOTADO' : 'BAIXO'}</span>
+                    <span class="status-pill status-atrasado">${p.qtd === 0 ? 'ESGOTADO' : 'BAIXO'}</span>
                 </div>
             `).join('');
         }
@@ -409,21 +404,21 @@ function renderizarGraficosSeguro(receberList, pagarList) {
     }
 }
 
-/* CONTAS A PAGAR E RECEBER */
+/* RENDERS COM BOTÕES NO PADRÃO ORIGINAL */
 function renderizarContasPagar() {
     const tbody = document.getElementById('tableContasPagar');
     if (!tbody) return;
 
     const termo = (document.getElementById('searchPagar')?.value || '').trim().toLowerCase();
     const statusFiltro = (document.getElementById('filterStatusPagar')?.value || 'todos').toLowerCase();
+    const ccFiltro = document.getElementById('filterCcPagar')?.value || 'todos';
 
     let filtradas = filtrarPorPeriodo(contasPagar);
 
     if (termo !== '') {
         filtradas = filtradas.filter(p => 
             (p.fornecedor && String(p.fornecedor).toLowerCase().includes(termo)) || 
-            (p.descricao && String(p.descricao).toLowerCase().includes(termo)) ||
-            (p.categoria && String(p.categoria).toLowerCase().includes(termo))
+            (p.descricao && String(p.descricao).toLowerCase().includes(termo))
         );
     }
 
@@ -431,26 +426,37 @@ function renderizarContasPagar() {
         filtradas = filtradas.filter(p => getStatusEfetivo(p).toLowerCase() === statusFiltro);
     }
 
+    if (ccFiltro !== 'todos') {
+        filtradas = filtradas.filter(p => p.categoria === ccFiltro);
+    }
+
     if (filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Nenhuma conta a pagar encontrada.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Nenhuma conta a pagar encontrada.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = filtradas.map(p => {
         const stEfetivo = getStatusEfetivo(p);
+        const tagFixa = p.fixa ? '<span class="badge-fixa">FIXA</span>' : '';
+        const isPago = stEfetivo === 'PAGO';
+
         return `
             <tr>
                 <td>${formatarDataBR(p.vencimento)}</td>
-                <td><strong>${p.fornecedor}</strong></td>
-                <td>${p.descricao}</td>
-                <td class="text-danger font-bold">${formatarMoeda(p.valor)}</td>
-                <td><span class="category-badge">${p.categoria}</span></td>
-                <td><span class="status ${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
-                <td>${formatarDataBR(p.dataPagamento)}</td>
+                <td>${p.fornecedor}</td>
+                <td>${p.descricao} ${tagFixa}</td>
+                <td class="font-bold">${formatarMoeda(p.valor)}</td>
+                <td><span class="status-pill status-${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
+                <td>${p.categoria || 'ADMINISTRATIVO'}</td>
                 <td>
-                    ${stEfetivo !== 'PAGO' ? `<button type="button" class="btn-action btn-success" title="Dar Baixa" onclick="window.darBaixaPagar('${p.id}')"><i class="fas fa-check"></i> Pago</button>` : ''}
-                    <button type="button" class="btn-action btn-secondary" title="Editar" onclick="window.editarPagar('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button type="button" class="btn-action btn-danger" title="Excluir" onclick="window.excluirPagar('${p.id}')"><i class="fas fa-trash"></i></button>
+                    <div class="actions-cell">
+                        ${isPago ? 
+                            `<button type="button" class="btn-tbl-reverter" title="Reverter Status" onclick="window.alternarStatus('${p.id}', true)"><i class="fas fa-undo"></i> Reverter</button>` : 
+                            `<button type="button" class="btn-tbl-baixa" title="Dar Baixa" onclick="window.darBaixaPagar('${p.id}')"><i class="fas fa-check"></i> Dar Baixa</button>`
+                        }
+                        <button type="button" class="btn-tbl-editar" title="Editar" onclick="window.editarPagar('${p.id}')"><i class="fas fa-edit"></i> Editar</button>
+                        <button type="button" class="btn-tbl-excluir" title="Excluir" onclick="window.excluirPagar('${p.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -463,14 +469,14 @@ function renderizarContasReceber() {
 
     const termo = (document.getElementById('searchReceber')?.value || '').trim().toLowerCase();
     const statusFiltro = (document.getElementById('filterStatusReceber')?.value || 'todos').toLowerCase();
+    const ccFiltro = document.getElementById('filterCcReceber')?.value || 'todos';
 
     let filtradas = filtrarPorPeriodo(contasReceber);
 
     if (termo !== '') {
         filtradas = filtradas.filter(r => 
             (r.cliente && String(r.cliente).toLowerCase().includes(termo)) || 
-            (r.descricao && String(r.descricao).toLowerCase().includes(termo)) ||
-            (r.categoria && String(r.categoria).toLowerCase().includes(termo))
+            (r.descricao && String(r.descricao).toLowerCase().includes(termo))
         );
     }
 
@@ -478,34 +484,106 @@ function renderizarContasReceber() {
         filtradas = filtradas.filter(r => getStatusEfetivo(r).toLowerCase() === statusFiltro);
     }
 
+    if (ccFiltro !== 'todos') {
+        filtradas = filtradas.filter(r => r.categoria === ccFiltro);
+    }
+
     if (filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Nenhuma conta a receber encontrada.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Nenhuma conta a receber encontrada.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = filtradas.map(r => {
         const stEfetivo = getStatusEfetivo(r);
+        const isPago = stEfetivo === 'PAGO';
+
         return `
             <tr>
                 <td>${formatarDataBR(r.vencimento)}</td>
-                <td><strong>${r.cliente}</strong></td>
+                <td>${r.cliente}</td>
                 <td>${r.descricao}</td>
-                <td class="text-success font-bold">${formatarMoeda(r.valor)}</td>
-                <td><span class="category-badge">${r.categoria}</span></td>
-                <td><span class="status ${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
-                <td>${formatarDataBR(r.dataPagamento)}</td>
+                <td class="font-bold">${formatarMoeda(r.valor)}</td>
+                <td><span class="status-pill status-${stEfetivo.toLowerCase()}">${stEfetivo}</span></td>
+                <td>${r.categoria || 'SERVIÇOS'}</td>
                 <td>
-                    ${stEfetivo !== 'PAGO' ? `<button type="button" class="btn-action btn-success" title="Dar Baixa" onclick="window.darBaixaReceber('${r.id}')"><i class="fas fa-check"></i> Pago</button>` : ''}
-                    <button type="button" class="btn-action btn-secondary" title="Editar" onclick="window.editarReceber('${r.id}')"><i class="fas fa-edit"></i></button>
-                    <button type="button" class="btn-action btn-danger" title="Excluir" onclick="window.excluirReceber('${r.id}')"><i class="fas fa-trash"></i></button>
+                    <div class="actions-cell">
+                        ${isPago ? 
+                            `<button type="button" class="btn-tbl-reverter" title="Reverter Status" onclick="window.alternarStatus('${r.id}', false)"><i class="fas fa-undo"></i> Reverter</button>` : 
+                            `<button type="button" class="btn-tbl-baixa" title="Dar Baixa" onclick="window.darBaixaReceber('${r.id}')"><i class="fas fa-check"></i> Dar Baixa</button>`
+                        }
+                        <button type="button" class="btn-tbl-editar" title="Editar" onclick="window.editarReceber('${r.id}')"><i class="fas fa-edit"></i> Editar</button>
+                        <button type="button" class="btn-tbl-excluir" title="Excluir" onclick="window.excluirReceber('${r.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
                 </td>
             </tr>
         `;
     }).join('');
 }
 
+function renderizarEstoque() {
+    const tbody = document.getElementById('tableEstoque');
+    if (!tbody) return;
+
+    const termo = (document.getElementById('searchEstoque')?.value || '').trim().toLowerCase();
+    const filtroAlerta = (document.getElementById('filterAlertaEstoque')?.value || 'todos').toLowerCase();
+
+    let filtrados = [...garantirArray(estoque)];
+
+    if (termo !== '') {
+        filtrados = filtrados.filter(p => 
+            (p.sku && String(p.sku).toLowerCase().includes(termo)) || 
+            (p.nome && String(p.nome).toLowerCase().includes(termo))
+        );
+    }
+
+    if (filtroAlerta === 'alerta') {
+        filtrados = filtrados.filter(p => p.qtd <= p.qtdMin);
+    } else if (filtroAlerta === 'zerado') {
+        filtrados = filtrados.filter(p => p.qtd === 0);
+    }
+
+    if (filtrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;">Nenhum produto cadastrado no estoque.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtrados.map(p => {
+        const subtotalCusto = p.qtd * p.precoCusto;
+
+        return `
+            <tr>
+                <td>${p.sku}</td>
+                <td>${p.nome}</td>
+                <td>${p.categoria || 'Peças'}</td>
+                <td><strong>${p.qtd}</strong></td>
+                <td>${p.qtdMin}</td>
+                <td>${formatarMoeda(p.precoCusto)}</td>
+                <td>${formatarMoeda(p.precoVenda)}</td>
+                <td>${formatarMoeda(subtotalCusto)}</td>
+                <td>
+                    <div class="actions-cell">
+                        <button type="button" class="btn-tbl-mov" title="Movimentar (+/-)" onclick="window.abrirModalMovimentacao('${p.id}')"><i class="fas fa-exchange-alt"></i> +/-</button>
+                        <button type="button" class="btn-tbl-editar" title="Editar" onclick="window.editarProduto('${p.id}')"><i class="fas fa-edit"></i> Editar</button>
+                        <button type="button" class="btn-tbl-excluir" title="Excluir" onclick="window.excluirProduto('${p.id}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function alternarStatus(id, isPagar) {
+    const list = isPagar ? contasPagar : contasReceber;
+    const item = list.find(x => String(x.id) === String(id));
+    if (item) {
+        item.status = item.status === 'PAGO' ? 'PENDENTE' : 'PAGO';
+        if (item.status === 'PAGO') item.dataPagamento = new Date().toISOString().split('T')[0];
+        salvarDadosLocal();
+        renderizarTudo();
+    }
+}
+
 function darBaixaPagar(id) {
-    contasPagar = garantirArray(contasPagar);
     const item = contasPagar.find(p => String(p.id) === String(id));
     if (item) {
         item.status = 'PAGO';
@@ -516,7 +594,6 @@ function darBaixaPagar(id) {
 }
 
 function darBaixaReceber(id) {
-    contasReceber = garantirArray(contasReceber);
     const item = contasReceber.find(r => String(r.id) === String(id));
     if (item) {
         item.status = 'PAGO';
@@ -524,6 +601,41 @@ function darBaixaReceber(id) {
         salvarDadosLocal();
         renderizarTudo();
     }
+}
+
+function gerarDespesasFixasMesAtual() {
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+    const mesAtualNum = String(hoje.getMonth() + 1).padStart(2, '0');
+
+    const contasFixas = contasPagar.filter(item => item.fixa === true || item.fixa === 'SIM');
+
+    if (contasFixas.length === 0) {
+        alert("Nenhuma conta marcada como FIXA foi encontrada.");
+        return;
+    }
+
+    let geradas = 0;
+    contasFixas.forEach(conta => {
+        const dia = conta.vencimento ? conta.vencimento.split('-')[2] : '10';
+        const novoVenc = `${anoAtual}-${mesAtualNum}-${dia}`;
+
+        const jaExiste = contasPagar.some(x => x.descricao === conta.descricao && x.vencimento === novoVenc);
+        if (!jaExiste) {
+            contasPagar.push({
+                ...conta,
+                id: Date.now().toString() + Math.random(),
+                vencimento: novoVenc,
+                status: 'PENDENTE',
+                dataPagamento: ''
+            });
+            geradas++;
+        }
+    });
+
+    salvarDadosLocal();
+    renderizarTudo();
+    alert(`${geradas} despesa(s) fixa(s) gerada(s) para este mês!`);
 }
 
 function salvarContaPagar(event) {
@@ -632,67 +744,6 @@ function excluirReceber(id) {
     }
 }
 
-/* CONTROLE DE ESTOQUE */
-function renderizarEstoque() {
-    const tbody = document.getElementById('tableEstoque');
-    if (!tbody) return;
-
-    const termo = (document.getElementById('searchEstoque')?.value || '').trim().toLowerCase();
-    const filtroAlerta = (document.getElementById('filterAlertaEstoque')?.value || 'todos').toLowerCase();
-
-    let filtrados = [...garantirArray(estoque)];
-
-    if (termo !== '') {
-        filtrados = filtrados.filter(p => 
-            (p.sku && String(p.sku).toLowerCase().includes(termo)) || 
-            (p.nome && String(p.nome).toLowerCase().includes(termo))
-        );
-    }
-
-    if (filtroAlerta === 'alerta') {
-        filtrados = filtrados.filter(p => p.qtd <= p.qtdMin && p.qtd > 0);
-    } else if (filtroAlerta === 'zerado') {
-        filtrados = filtrados.filter(p => p.qtd === 0);
-    }
-
-    const patrimonioTotal = garantirArray(estoque).reduce((acc, p) => acc + (p.qtd * p.precoCusto), 0);
-    const totalCriticos = garantirArray(estoque).filter(p => p.qtd <= p.qtdMin).length;
-
-    document.getElementById('stkPatrimonioTotal').innerText = formatarMoeda(patrimonioTotal);
-    document.getElementById('stkTotalSkus').innerText = estoque.length;
-    document.getElementById('stkTotalAlertas').innerText = totalCriticos;
-
-    if (filtrados.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Nenhum produto cadastrado no estoque.</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = filtrados.map(p => {
-        const margemLucro = p.precoCusto > 0 ? (((p.precoVenda - p.precoCusto) / p.precoCusto) * 100).toFixed(1) : 0;
-        const totalInvestidoItem = p.qtd * p.precoCusto;
-        const isBaixo = p.qtd <= p.qtdMin;
-
-        return `
-            <tr>
-                <td><strong>${p.sku}</strong></td>
-                <td>${p.nome}</td>
-                <td><span class="category-badge">${p.categoria}</span></td>
-                <td class="${isBaixo ? 'text-danger font-bold' : ''}">${p.qtd} ${isBaixo ? '<i class="fas fa-exclamation-circle"></i>' : ''}</td>
-                <td>${p.qtdMin}</td>
-                <td>${formatarMoeda(p.precoCusto)}</td>
-                <td>${formatarMoeda(p.precoVenda)}</td>
-                <td><span class="badge badge-success">+${margemLucro}%</span></td>
-                <td><strong>${formatarMoeda(totalInvestidoItem)}</strong></td>
-                <td>
-                    <button type="button" class="btn-action btn-primary" title="Movimentar (+/-)" onclick="window.abrirModalMovimentacao('${p.id}')"><i class="fas fa-exchange-alt"></i></button>
-                    <button type="button" class="btn-action btn-secondary" title="Editar" onclick="window.editarProduto('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button type="button" class="btn-action btn-danger" title="Excluir" onclick="window.excluirProduto('${p.id}')"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
 function salvarProduto(event) {
     if (event) event.preventDefault();
     const id = document.getElementById('prodId').value;
@@ -772,11 +823,7 @@ function salvarMovimentacaoEstoque(event) {
     }
 }
 
-/* DEMONSTRATIVO DRE */
 function renderizarDRE() {
-    const elText = document.getElementById('drePeriodoText');
-    if (elText) elText.innerText = filtroDataAtivo;
-
     const receberFiltrado = filtrarPorPeriodo(contasReceber);
     const pagarFiltrado = filtrarPorPeriodo(contasPagar);
 
@@ -795,244 +842,79 @@ function renderizarDRE() {
     document.getElementById('dreMargemLiquida').innerText = `${margemLiquida}%`;
 }
 
-/* IMPORTAÇÃO EXCEL (.XLSX) */
 function importarPlanilhaExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
-
-    if (typeof XLSX === 'undefined') {
-        alert('A biblioteca de leitura de Excel não carregou. Verifique sua conexão ou recarregue a página.');
-        return;
-    }
-
-    const limitSelect = document.getElementById('excelImportLimit');
-    const limitValue = limitSelect ? limitSelect.value : 'ALL';
 
     const reader = new FileReader();
     reader.onload = function(evt) {
         try {
             const data = new Uint8Array(evt.target.result);
-            const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
+            const workbook = XLSX.read(data, { type: 'array' });
 
-            let pagarEncontrados = [];
-            let receberEncontrados = [];
+            let countPagar = 0;
+            let countReceber = 0;
 
-            function parseValor(rawValor) {
-                if (rawValor === undefined || rawValor === null || rawValor === '') return 0;
-                if (typeof rawValor === 'number') return rawValor;
-                let strV = String(rawValor).replace(/R\$/gi, '').trim();
-                if (strV.includes(',') && strV.includes('.')) {
-                    if (strV.indexOf('.') < strV.indexOf(',')) {
-                        strV = strV.replace(/\./g, '').replace(',', '.');
-                    } else {
-                        strV = strV.replace(/,/g, '');
-                    }
-                } else if (strV.includes(',')) {
-                    strV = strV.replace(',', '.');
-                }
-                const num = parseFloat(strV);
-                return isNaN(num) ? 0 : num;
-            }
-
-            function parseExcelDate(val) {
-                if (!val) return new Date().toISOString().slice(0, 10);
-                if (val instanceof Date && !isNaN(val.getTime())) {
-                    const y = val.getUTCFullYear();
-                    const m = String(val.getUTCMonth() + 1).padStart(2, '0');
-                    const d = String(val.getUTCDate()).padStart(2, '0');
-                    return `${y}-${m}-${d}`;
-                }
-                let str = String(val).trim();
-                if (!str) return new Date().toISOString().slice(0, 10);
-                if (str.includes(' ')) str = str.split(' ')[0].trim();
-                if (str.includes('T')) str = str.split('T')[0].trim();
-                if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-                if (str.includes('/')) {
-                    const parts = str.split('/');
-                    if (parts.length === 3) {
-                        let p1 = parseInt(parts[0], 10);
-                        let p2 = parseInt(parts[1], 10);
-                        let p3 = parseInt(parts[2], 10);
-                        if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
-                            if (p3 < 100) p3 += 2000;
-                            if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
-                            if (p1 > 12) return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
-                            if (p2 > 12) return `${p3}-${String(p1).padStart(2, '0')}-${String(p2).padStart(2, '0')}`;
-                            return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
-                        }
-                    }
-                }
-                if (str.includes('-')) {
-                    const parts = str.split('-');
-                    if (parts.length === 3) {
-                        let p1 = parseInt(parts[0], 10);
-                        let p2 = parseInt(parts[1], 10);
-                        let p3 = parseInt(parts[2], 10);
-                        if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
-                            if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
-                            if (p3 < 100) p3 += 2000;
-                            return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
-                        }
-                    }
-                }
-                return new Date().toISOString().slice(0, 10);
-            }
-
-            // 1. Processar Aba "CONTAS A PAGAR"
-            const sheetPagarName = workbook.SheetNames.find(s => {
-                if (!s) return false;
-                const u = String(s).toUpperCase();
-                return u.includes('PAGAR') || u.includes('SAIDA') || u.includes('DESPESA') || u.includes('PAGAMENTO');
-            });
-
+            const sheetPagarName = workbook.SheetNames.find(s => s.toUpperCase().includes('PAGAR') || s.toUpperCase().includes('SAIDA'));
             if (sheetPagarName) {
                 const sheetPagar = workbook.Sheets[sheetPagarName];
-                const rows = XLSX.utils.sheet_to_json(sheetPagar, { header: 1, cellDates: true, raw: true });
+                const rows = XLSX.utils.sheet_to_json(sheetPagar);
 
-                let headerIdx = -1;
-                for (let i = 0; i < Math.min(15, rows.length); i++) {
-                    if (!rows[i]) continue;
-                    const rStr = Array.from(rows[i]).map(c => String(c || '').toUpperCase()).join(' ');
-                    if (rStr.includes('FORNECEDOR') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('EMPRESA')) {
-                        headerIdx = i;
-                        break;
-                    }
-                }
-
-                if (headerIdx !== -1) {
-                    const headers = Array.from(rows[headerIdx]).map(h => String(h || '').trim().toUpperCase());
-                    const idxVenc = headers.findIndex(h => h && (h.includes('VENCIMENTO') || h.includes('DATA')));
-                    const idxForn = headers.findIndex(h => h && (h.includes('FORNECEDOR') || h.includes('EMPRESA') || h.includes('NOME') || h.includes('RECEBEDOR')));
-                    const idxDesc = headers.findIndex(h => h && (h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO')));
-                    const idxValor = headers.findIndex(h => h && h.includes('VALOR'));
-                    const idxStatus = headers.findIndex(h => h && (h.includes('STATUS') || h.includes('SITUAÇÃO')));
-                    const idxCC = headers.findIndex(h => h && (h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA')));
-
-                    for (let i = headerIdx + 1; i < rows.length; i++) {
-                        const row = rows[i];
-                        if (!row || row.length === 0) continue;
-
-                        const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
-                        const numValor = parseValor(rawValor);
-                        if (numValor === 0) continue;
-
-                        const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
-                        const vencFormated = parseExcelDate(rawVenc);
-                        const fornecedor = idxForn !== -1 && idxForn < row.length && row[idxForn] ? String(row[idxForn]).trim() : 'Fornecedor Importado';
-                        const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Lançamento Excel';
-                        const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
-                        const status = rawStatus.includes('PAG') ? 'PAGO' : 'PENDENTE';
-                        const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'ADMINISTRATIVO';
-
-                        let cc = 'Custos Fixos';
-                        if (rawCC.includes('PESS')) cc = 'Pessoal';
-                        else if (rawCC.includes('PEÇ') || rawCC.includes('PEC')) cc = 'Peças Novas';
-                        else if (rawCC.includes('ADM')) cc = 'Administrativo';
-
-                        pagarEncontrados.push({
-                            id: 'imp_p_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-                            vencimento: vencFormated,
+                rows.forEach(row => {
+                    const fornecedor = row.Fornecedor || row.Empresa || row.Nome || 'Fornecedor Importado';
+                    const valor = parseFloat(row.Valor) || 0;
+                    if (valor > 0) {
+                        contasPagar.push({
+                            id: Date.now().toString() + Math.random(),
                             fornecedor: fornecedor,
-                            descricao: desc,
-                            valor: numValor,
-                            categoria: cc,
-                            status: status,
-                            dataPagamento: status === 'PAGO' ? vencFormated : '',
-                            tipoPagamento: 'Importado'
+                            descricao: row.Descrição || row.Descricao || 'Importado via Excel',
+                            valor: valor,
+                            vencimento: row.Vencimento || new Date().toISOString().split('T')[0],
+                            categoria: row.Categoria || 'Custos Fixos',
+                            status: (row.Status || 'PENDENTE').toUpperCase(),
+                            dataPagamento: row.DataPagamento || '',
+                            tipoPagamento: row.Tipo || 'PIX'
                         });
+                        countPagar++;
                     }
-                }
+                });
             }
 
-            // 2. Processar Aba "CONTAS A RECEBER"
-            const sheetReceberName = workbook.SheetNames.find(s => {
-                if (!s) return false;
-                const u = String(s).toUpperCase();
-                return u.includes('RECEBER') || u.includes('ENTRADA') || u.includes('RECEITA') || u.includes('RECEBIMENTO');
-            });
-
+            const sheetReceberName = workbook.SheetNames.find(s => s.toUpperCase().includes('RECEBER') || s.toUpperCase().includes('ENTRADA'));
             if (sheetReceberName) {
                 const sheetReceber = workbook.Sheets[sheetReceberName];
-                const rows = XLSX.utils.sheet_to_json(sheetReceber, { header: 1, cellDates: true, raw: true });
+                const rows = XLSX.utils.sheet_to_json(sheetReceber);
 
-                let headerIdx = -1;
-                for (let i = 0; i < Math.min(15, rows.length); i++) {
-                    if (!rows[i]) continue;
-                    const rStr = Array.from(rows[i]).map(c => String(c || '').toUpperCase()).join(' ');
-                    if (rStr.includes('CLIENTE') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('NOME')) {
-                        headerIdx = i;
-                        break;
-                    }
-                }
-
-                if (headerIdx !== -1) {
-                    const headers = Array.from(rows[headerIdx]).map(h => String(h || '').trim().toUpperCase());
-                    const idxVenc = headers.findIndex(h => h && (h.includes('VENCIMENTO') || h.includes('DATA')));
-                    const idxCli = headers.findIndex(h => h && (h.includes('CLIENTE') || h.includes('NOME') || h.includes('FORNECEDOR') || h.includes('EMPRESA')));
-                    const idxDesc = headers.findIndex(h => h && (h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO')));
-                    const idxValor = headers.findIndex(h => h && h.includes('VALOR'));
-                    const idxStatus = headers.findIndex(h => h && (h.includes('STATUS') || h.includes('SITUAÇÃO')));
-                    const idxCC = headers.findIndex(h => h && (h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA')));
-
-                    for (let i = headerIdx + 1; i < rows.length; i++) {
-                        const row = rows[i];
-                        if (!row || row.length === 0) continue;
-
-                        const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
-                        const numValor = parseValor(rawValor);
-                        if (numValor === 0) continue;
-
-                        const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
-                        const vencFormated = parseExcelDate(rawVenc);
-                        const cliente = idxCli !== -1 && idxCli < row.length && row[idxCli] ? String(row[idxCli]).trim() : 'Cliente Importado';
-                        const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Recebimento Excel';
-                        const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
-                        const status = (rawStatus.includes('PAG') || rawStatus.includes('RECEB')) ? 'PAGO' : 'PENDENTE';
-                        const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'SERVIÇOS';
-
-                        let cc = 'Serviços';
-                        if (rawCC.includes('VEND')) cc = 'Vendas';
-                        else if (rawCC.includes('REP')) cc = 'Reparos';
-
-                        receberEncontrados.push({
-                            id: 'imp_r_' + Date.now() + '_' + Math.floor(Math.random() * 100000),
-                            vencimento: vencFormated,
+                rows.forEach(row => {
+                    const cliente = row.Cliente || row.Nome || 'Cliente Importado';
+                    const valor = parseFloat(row.Valor) || 0;
+                    if (valor > 0) {
+                        contasReceber.push({
+                            id: Date.now().toString() + Math.random(),
                             cliente: cliente,
-                            descricao: desc,
-                            valor: numValor,
-                            categoria: cc,
-                            status: status,
-                            dataPagamento: status === 'PAGO' ? vencFormated : '',
-                            tipoPagamento: 'Importado'
+                            descricao: row.Descrição || row.Descricao || 'Importado via Excel',
+                            valor: valor,
+                            vencimento: row.Vencimento || new Date().toISOString().split('T')[0],
+                            categoria: row.Categoria || 'Serviços',
+                            status: (row.Status || 'PENDENTE').toUpperCase(),
+                            dataPagamento: row.DataPagamento || '',
+                            tipoPagamento: row.Tipo || 'PIX'
                         });
+                        countReceber++;
                     }
-                }
+                });
             }
-
-            if (limitValue !== 'ALL') {
-                const lim = parseInt(limitValue, 10);
-                if (pagarEncontrados.length > lim) pagarEncontrados = pagarEncontrados.slice(-lim);
-                if (receberEncontrados.length > lim) receberEncontrados = receberEncontrados.slice(-lim);
-            }
-
-            contasPagar = [...garantirArray(contasPagar), ...pagarEncontrados];
-            contasReceber = [...garantirArray(contasReceber), ...receberEncontrados];
 
             salvarDadosLocal();
             renderizarTudo();
-
-            const txtModo = limitValue === 'ALL' ? 'Toda a planilha' : `Últimos ${limitValue} registros`;
-            alert(`Importação concluída com sucesso (${txtModo})!\n\n• Contas a Pagar importadas: ${pagarEncontrados.length}\n• Contas a Receber importadas: ${receberEncontrados.length}`);
-
+            alert(`Planilha importada com sucesso!\n• ${countPagar} Contas a Pagar\n• ${countReceber} Contas a Receber`);
         } catch (err) {
-            console.error('Erro ao ler a planilha Excel:', err);
-            alert('Erro ao processar a planilha: ' + err.message);
+            alert("Erro ao ler planilha Excel. Certifique-se de que é um arquivo .xlsx válido.");
         }
     };
     reader.readAsArrayBuffer(file);
 }
 
-/* EXPORTAÇÃO DE BACKUP & CSV */
 function exportarBackupJSON() {
     const data = { contasPagar, contasReceber, estoque, exportDate: new Date().toISOString() };
     const jsonStr = JSON.stringify(data, null, 2);
@@ -1092,7 +974,6 @@ function exportarCSV(tipo) {
     document.body.removeChild(link);
 }
 
-/* MODAIS */
 function abrirModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'flex';
@@ -1123,7 +1004,7 @@ function abrirModalProduto() {
     abrirModal('modalProduto');
 }
 
-/* ESCOPO GLOBAL */
+window.alternarStatus = alternarStatus;
 window.darBaixaPagar = darBaixaPagar;
 window.darBaixaReceber = darBaixaReceber;
 window.editarPagar = editarPagar;
@@ -1133,7 +1014,6 @@ window.excluirReceber = excluirReceber;
 window.editarProduto = editarProduto;
 window.excluirProduto = excluirProduto;
 window.abrirModalMovimentacao = abrirModalMovimentacao;
-window.importarPlanilhaExcel = importarPlanilhaExcel;
 
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
