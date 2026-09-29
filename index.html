@@ -202,7 +202,7 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* REGRA RESPONSIVA EXCLUSIVA PARA MÓVEL (NÃO AFETA PC) */
+        /* REGRA RESPONSIVA EXCLUSIVA PARA MÓVEL */
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -827,7 +827,6 @@
             document.getElementById(`tab-${abaId}`).classList.add('active');
             if (el) el.classList.add('active');
 
-            // Fechar sidebar no celular após selecionar
             if (window.innerWidth <= 768) {
                 document.getElementById('sidebar').classList.remove('active');
                 document.querySelector('.sidebar-overlay').classList.remove('active');
@@ -842,7 +841,10 @@
             if (!item || !item.venc) return true;
             if (filtroPeriodoGlobal === 'todos') return true;
 
-            const itemDate = new Date(item.venc + 'T00:00:00');
+            let cleanVenc = String(item.venc).trim().split(' ')[0].split('T')[0];
+            const itemDate = new Date(cleanVenc + 'T00:00:00');
+            if (isNaN(itemDate.getTime())) return true;
+
             const hoje = new Date();
 
             if (filtroPeriodoGlobal === 'este-mes') {
@@ -868,7 +870,6 @@
                 localStorage.setItem('ric_estoque', JSON.stringify(dbEstoque));
             }
 
-            // Aplica filtro de período global nos dados
             const pagarFiltrado = dbPagar.filter(filtrarPorPeriodo);
             const receberFiltrado = dbReceber.filter(filtrarPorPeriodo);
 
@@ -890,7 +891,6 @@
             document.getElementById('kpiBalanceProjected').innerText = fmt(balProj);
             document.getElementById('kpiStockTotal').innerText = fmt(stockTot);
 
-            // Totais dinâmicos para Gráfico de Categorias
             let catPessoal = pagarFiltrado.filter(x => x.cc === 'PESSOAL').reduce((a,b) => a + Number(b.valor), 0);
             let catAdmin = pagarFiltrado.filter(x => x.cc === 'ADMINISTRATIVO').reduce((a,b) => a + Number(b.valor), 0);
             let catPecas = pagarFiltrado.filter(x => x.cc === 'PEÇAS').reduce((a,b) => a + Number(b.valor), 0);
@@ -899,7 +899,6 @@
             renderTabelas(pagarFiltrado, receberFiltrado);
             renderGraficos(realIn, realOut, catPessoal, catAdmin, catPecas);
 
-            // Verificação automática de despesas fixas do mês
             if (!window.fixasVerificadasAuto) {
                 window.fixasVerificadasAuto = true;
                 gerarDespesasFixasMesAtual(true);
@@ -1298,7 +1297,7 @@
             }
         }
 
-        // IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) COM MODO ADIÇÃO E LIMITE SELECIONÁVEL
+        // IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) OTIMIZADA E RESISTENTE A FALHAS
         function importarPlanilhaExcel(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -1309,55 +1308,109 @@
             reader.onload = function(evt) {
                 try {
                     const data = new Uint8Array(evt.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: true });
 
                     let pagarEncontrados = [];
                     let receberEncontrados = [];
 
+                    // Converte valores numéricos e moedas
+                    function parseValor(rawValor) {
+                        if (rawValor === undefined || rawValor === null || rawValor === '') return 0;
+                        if (typeof rawValor === 'number') return rawValor;
+                        let strV = String(rawValor).replace(/R\$/gi, '').trim();
+                        if (strV.includes(',') && strV.includes('.')) {
+                            if (strV.indexOf('.') < strV.indexOf(',')) {
+                                strV = strV.replace(/\./g, '').replace(',', '.');
+                            } else {
+                                strV = strV.replace(/,/g, '');
+                            }
+                        } else if (strV.includes(',')) {
+                            strV = strV.replace(',', '.');
+                        }
+                        const num = parseFloat(strV);
+                        return isNaN(num) ? 0 : num;
+                    }
+
+                    // Converte datas removendo horas e minutos
                     function parseExcelDate(val) {
                         if (!val) return new Date().toISOString().slice(0, 10);
+                        
                         if (val instanceof Date && !isNaN(val.getTime())) {
-                            const y = val.getFullYear();
-                            const m = String(val.getMonth() + 1).padStart(2, '0');
-                            const d = String(val.getDate()).padStart(2, '0');
+                            const y = val.getUTCFullYear();
+                            const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+                            const d = String(val.getUTCDate()).padStart(2, '0');
                             return `${y}-${m}-${d}`;
                         }
+
                         if (typeof val === 'number') {
-                            const dateObj = XLSX.SSF.parse_date_code(val);
-                            if (dateObj) {
-                                const y = dateObj.y;
-                                const m = String(dateObj.m).padStart(2, '0');
-                                const d = String(dateObj.d).padStart(2, '0');
-                                return `${y}-${m}-${d}`;
+                            if (typeof XLSX !== 'undefined' && XLSX.SSF) {
+                                try {
+                                    const dateObj = XLSX.SSF.parse_date_code(val);
+                                    if (dateObj) {
+                                        const y = dateObj.y;
+                                        const m = String(dateObj.m).padStart(2, '0');
+                                        const d = String(dateObj.d).padStart(2, '0');
+                                        return `${y}-${m}-${d}`;
+                                    }
+                                } catch(err) {}
                             }
                         }
-                        if (typeof val === 'string') {
-                            val = val.trim();
-                            if (val.includes('/')) {
-                                const parts = val.split('/');
-                                if (parts.length === 3) {
-                                    if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
-                                    return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+
+                        let str = String(val).trim();
+                        if (!str) return new Date().toISOString().slice(0, 10);
+
+                        if (str.includes(' ')) str = str.split(' ')[0].trim();
+                        if (str.includes('T')) str = str.split('T')[0].trim();
+
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+                        if (str.includes('/')) {
+                            const parts = str.split('/');
+                            if (parts.length === 3) {
+                                let p1 = parseInt(parts[0], 10);
+                                let p2 = parseInt(parts[1], 10);
+                                let p3 = parseInt(parts[2], 10);
+                                if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+                                    if (p3 < 100) p3 += 2000;
+                                    if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
+                                    if (p1 > 12) return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
+                                    if (p2 > 12) return `${p3}-${String(p1).padStart(2, '0')}-${String(p2).padStart(2, '0')}`;
+                                    return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
                                 }
                             }
-                            if (val.includes('-')) {
-                                const parts = val.split('-');
-                                if (parts.length === 3 && parts[0].length === 4) return val;
+                        }
+
+                        if (str.includes('-')) {
+                            const parts = str.split('-');
+                            if (parts.length === 3) {
+                                let p1 = parseInt(parts[0], 10);
+                                let p2 = parseInt(parts[1], 10);
+                                let p3 = parseInt(parts[2], 10);
+                                if (!isNaN(p1) && !isNaN(p2) && !isNaN(p3)) {
+                                    if (p1 > 1000) return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
+                                    if (p3 < 100) p3 += 2000;
+                                    return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
+                                }
                             }
                         }
+
                         return new Date().toISOString().slice(0, 10);
                     }
 
-                    // 1. Processar e Extrair Aba "CONTAS A PAGAR"
-                    const sheetPagarName = workbook.SheetNames.find(s => s.toUpperCase().includes('PAGAR'));
+                    // 1. Processar Aba "CONTAS A PAGAR"
+                    const sheetPagarName = workbook.SheetNames.find(s => {
+                        const u = s.toUpperCase();
+                        return u.includes('PAGAR') || u.includes('SAIDA') || u.includes('DESPESA') || u.includes('PAGAMENTO');
+                    });
+
                     if (sheetPagarName) {
                         const sheetPagar = workbook.Sheets[sheetPagarName];
-                        const rows = XLSX.utils.sheet_to_json(sheetPagar, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
+                        const rows = XLSX.utils.sheet_to_json(sheetPagar, { header: 1, cellDates: true, raw: true });
 
                         let headerIdx = -1;
-                        for (let i = 0; i < Math.min(10, rows.length); i++) {
-                            const rStr = (rows[i] || []).map(c => String(c).toUpperCase()).join(' ');
-                            if (rStr.includes('FORNECEDOR') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO')) {
+                        for (let i = 0; i < Math.min(15, rows.length); i++) {
+                            const rStr = (rows[i] || []).map(c => String(c || '').toUpperCase()).join(' ');
+                            if (rStr.includes('FORNECEDOR') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('EMPRESA')) {
                                 headerIdx = i;
                                 break;
                             }
@@ -1367,38 +1420,28 @@
                             const headers = rows[headerIdx].map(h => String(h || '').trim().toUpperCase());
                             
                             const idxVenc = headers.findIndex(h => h.includes('VENCIMENTO') || h.includes('DATA'));
-                            const idxForn = headers.findIndex(h => h.includes('FORNECEDOR') || h.includes('EMPRESA') || h.includes('NOME'));
-                            const idxDesc = headers.findIndex(h => h.includes('DESCRIÇÃO') || h.includes('DESCRICAO'));
+                            const idxForn = headers.findIndex(h => h.includes('FORNECEDOR') || h.includes('EMPRESA') || h.includes('NOME') || h.includes('RECEBEDOR'));
+                            const idxDesc = headers.findIndex(h => h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO'));
                             const idxValor = headers.findIndex(h => h.includes('VALOR'));
-                            const idxStatus = headers.findIndex(h => h.includes('STATUS'));
-                            const idxCC = headers.findIndex(h => h.includes('CENTRO') || h.includes('CUSTO'));
+                            const idxStatus = headers.findIndex(h => h.includes('STATUS') || h.includes('SITUAÇÃO'));
+                            const idxCC = headers.findIndex(h => h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA'));
 
                             for (let i = headerIdx + 1; i < rows.length; i++) {
                                 const row = rows[i];
                                 if (!row || row.length === 0) continue;
 
-                                const rawValor = idxValor !== -1 ? row[idxValor] : null;
-                                if (rawValor === undefined || rawValor === null || rawValor === '') continue;
-
-                                let numValor = 0;
-                                if (typeof rawValor === 'number') {
-                                    numValor = rawValor;
-                                } else {
-                                    let strV = String(rawValor).replace('R$', '').replace(/\s/g, '');
-                                    if (strV.includes(',') && strV.includes('.')) strV = strV.replace(/\./g, '').replace(',', '.');
-                                    else if (strV.includes(',')) strV = strV.replace(',', '.');
-                                    numValor = parseFloat(strV) || 0;
-                                }
-
+                                const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
+                                const numValor = parseValor(rawValor);
                                 if (numValor === 0) continue;
 
-                                const rawVenc = idxVenc !== -1 ? row[idxVenc] : '';
+                                const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
                                 const vencFormated = parseExcelDate(rawVenc);
-                                const fornecedor = idxForn !== -1 && row[idxForn] ? String(row[idxForn]).trim() : 'Fornecedor Importado';
-                                const desc = idxDesc !== -1 && row[idxDesc] ? String(row[idxDesc]).trim() : 'Lançamento Excel';
-                                const rawStatus = idxStatus !== -1 && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
+
+                                const fornecedor = idxForn !== -1 && idxForn < row.length && row[idxForn] ? String(row[idxForn]).trim() : 'Fornecedor Importado';
+                                const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Lançamento Excel';
+                                const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
                                 const status = rawStatus.includes('PAG') ? 'PAGO' : 'PENDENTE';
-                                const rawCC = idxCC !== -1 && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'ADMINISTRATIVO';
+                                const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'ADMINISTRATIVO';
 
                                 let cc = 'ADMINISTRATIVO';
                                 if (rawCC.includes('PESS')) cc = 'PESSOAL';
@@ -1418,16 +1461,20 @@
                         }
                     }
 
-                    // 2. Processar e Extrair Aba "CONTAS A RECEBER"
-                    const sheetReceberName = workbook.SheetNames.find(s => s.toUpperCase().includes('RECEBER'));
+                    // 2. Processar Aba "CONTAS A RECEBER"
+                    const sheetReceberName = workbook.SheetNames.find(s => {
+                        const u = s.toUpperCase();
+                        return u.includes('RECEBER') || u.includes('ENTRADA') || u.includes('RECEITA') || u.includes('RECEBIMENTO');
+                    });
+
                     if (sheetReceberName) {
                         const sheetReceber = workbook.Sheets[sheetReceberName];
-                        const rows = XLSX.utils.sheet_to_json(sheetReceber, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
+                        const rows = XLSX.utils.sheet_to_json(sheetReceber, { header: 1, cellDates: true, raw: true });
 
                         let headerIdx = -1;
-                        for (let i = 0; i < Math.min(10, rows.length); i++) {
-                            const rStr = (rows[i] || []).map(c => String(c).toUpperCase()).join(' ');
-                            if (rStr.includes('CLIENTE') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO')) {
+                        for (let i = 0; i < Math.min(15, rows.length); i++) {
+                            const rStr = (rows[i] || []).map(c => String(c || '').toUpperCase()).join(' ');
+                            if (rStr.includes('CLIENTE') || rStr.includes('VALOR') || rStr.includes('VENCIMENTO') || rStr.includes('NOME')) {
                                 headerIdx = i;
                                 break;
                             }
@@ -1437,38 +1484,28 @@
                             const headers = rows[headerIdx].map(h => String(h || '').trim().toUpperCase());
                             
                             const idxVenc = headers.findIndex(h => h.includes('VENCIMENTO') || h.includes('DATA'));
-                            const idxCli = headers.findIndex(h => h.includes('CLIENTE') || h.includes('NOME'));
-                            const idxDesc = headers.findIndex(h => h.includes('DESCRIÇÃO') || h.includes('DESCRICAO'));
+                            const idxCli = headers.findIndex(h => h.includes('CLIENTE') || h.includes('NOME') || h.includes('FORNECEDOR') || h.includes('EMPRESA'));
+                            const idxDesc = headers.findIndex(h => h.includes('DESCRIÇÃO') || h.includes('DESCRICAO') || h.includes('HISTÓRICO'));
                             const idxValor = headers.findIndex(h => h.includes('VALOR'));
-                            const idxStatus = headers.findIndex(h => h.includes('STATUS'));
-                            const idxCC = headers.findIndex(h => h.includes('CENTRO') || h.includes('CUSTO'));
+                            const idxStatus = headers.findIndex(h => h.includes('STATUS') || h.includes('SITUAÇÃO'));
+                            const idxCC = headers.findIndex(h => h.includes('CENTRO') || h.includes('CUSTO') || h.includes('CATEGORIA'));
 
                             for (let i = headerIdx + 1; i < rows.length; i++) {
                                 const row = rows[i];
                                 if (!row || row.length === 0) continue;
 
-                                const rawValor = idxValor !== -1 ? row[idxValor] : null;
-                                if (rawValor === undefined || rawValor === null || rawValor === '') continue;
-
-                                let numValor = 0;
-                                if (typeof rawValor === 'number') {
-                                    numValor = rawValor;
-                                } else {
-                                    let strV = String(rawValor).replace('R$', '').replace(/\s/g, '');
-                                    if (strV.includes(',') && strV.includes('.')) strV = strV.replace(/\./g, '').replace(',', '.');
-                                    else if (strV.includes(',')) strV = strV.replace(',', '.');
-                                    numValor = parseFloat(strV) || 0;
-                                }
-
+                                const rawValor = idxValor !== -1 && idxValor < row.length ? row[idxValor] : null;
+                                const numValor = parseValor(rawValor);
                                 if (numValor === 0) continue;
 
-                                const rawVenc = idxVenc !== -1 ? row[idxVenc] : '';
+                                const rawVenc = idxVenc !== -1 && idxVenc < row.length ? row[idxVenc] : '';
                                 const vencFormated = parseExcelDate(rawVenc);
-                                const cliente = idxCli !== -1 && row[idxCli] ? String(row[idxCli]).trim() : 'Cliente Importado';
-                                const desc = idxDesc !== -1 && row[idxDesc] ? String(row[idxDesc]).trim() : 'Recebimento Excel';
-                                const rawStatus = idxStatus !== -1 && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
-                                const status = rawStatus.includes('PAG') || rawStatus.includes('RECEB') ? 'PAGO' : 'PENDENTE';
-                                const rawCC = idxCC !== -1 && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'SERVIÇOS';
+
+                                const cliente = idxCli !== -1 && idxCli < row.length && row[idxCli] ? String(row[idxCli]).trim() : 'Cliente Importado';
+                                const desc = idxDesc !== -1 && idxDesc < row.length && row[idxDesc] ? String(row[idxDesc]).trim() : 'Recebimento Excel';
+                                const rawStatus = idxStatus !== -1 && idxStatus < row.length && row[idxStatus] ? String(row[idxStatus]).trim().toUpperCase() : 'PENDENTE';
+                                const status = (rawStatus.includes('PAG') || rawStatus.includes('RECEB')) ? 'PAGO' : 'PENDENTE';
+                                const rawCC = idxCC !== -1 && idxCC < row.length && row[idxCC] ? String(row[idxCC]).trim().toUpperCase() : 'SERVIÇOS';
 
                                 let cc = 'SERVIÇOS';
                                 if (rawCC.includes('VEND')) cc = 'VENDAS';
@@ -1486,7 +1523,7 @@
                         }
                     }
 
-                    // 3. Aplicar Filtro de Quantidade de Registros (pega os últimos N da tabela se selecionado)
+                    // 3. Aplicar Filtro de Limite de Registros
                     if (limitValue !== 'ALL') {
                         const lim = parseInt(limitValue, 10);
                         if (pagarEncontrados.length > lim) {
@@ -1497,7 +1534,7 @@
                         }
                     }
 
-                    // 4. Salvar Adicionando os Novos Lançamentos aos Já Existentes
+                    // 4. Salvar Adicionando aos Lançamentos Existentes
                     let countPagar = 0;
                     let countReceber = 0;
 
@@ -1525,11 +1562,11 @@
                     e.target.value = '';
 
                     const txtModo = limitValue === 'ALL' ? 'Toda a planilha' : `Últimos ${limitValue} registros`;
-                    alert(`Importação concluída com sucesso (${txtModo})!\n\n• Lançamentos a Pagar adicionados: ${countPagar}\n• Lançamentos a Receber adicionados: ${countReceber}\n\n* Os registros já existentes foram mantidos salvos intactos.`);
+                    alert(`Importação concluída com sucesso (${txtModo})!\n\n• Contas a Pagar importadas: ${countPagar}\n• Contas a Receber importadas: ${countReceber}\n\n* Os lançamentos que já existiam no sistema foram mantidos salvos.`);
 
                 } catch (err) {
                     console.error('Erro ao ler a planilha Excel:', err);
-                    alert('Erro ao processar o arquivo de planilha. Verifique se é um arquivo Excel (.xlsx ou .xls) válido.');
+                    alert('Erro ao processar o arquivo de planilha. Verifique se o arquivo está no formato .xlsx válido.');
                 }
             };
             reader.readAsArrayBuffer(file);
