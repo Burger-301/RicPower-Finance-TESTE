@@ -63,9 +63,9 @@
                 </nav>
             </div>
             <div class="sidebar-footer">
-                <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
-                <div style="text-align: center; font-size: 11px; color: #888; margin-top: 12px;">
-                    Powered by <strong style="color: var(--accent-color);">CS Code Solutions</strong>
+                <button class="btn-logout-featured" onclick="logout()"><i class="fas fa-power-off"></i> Sair</button>
+                <div class="sidebar-signature">
+                    Powered by <strong>CS Code Solutions</strong>
                 </div>
             </div>
         </aside>
@@ -77,34 +77,38 @@
                     <div class="subtitle">Sistema de Gestão Richard Finance</div>
                 </div>
 
-                <!-- FILTRO DE PERÍODO GLOBAL -->
-                <div class="modern-filter-container">
-                    <button class="modern-filter-btn" onclick="toggleDateFilter()">
-                        <i class="far fa-calendar-alt"></i>
-                        <span id="currentPeriodText">Todos os Registros</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-                    <div id="dateFilterDropdown" class="modern-filter-dropdown">
-                        <div id="opt-todos" class="filter-option active-filter" onclick="selectPredefinedPeriod(this, 'Todos os Registros')">Todos os Registros</div>
-                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Este Mês')">Este Mês</div>
-                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Mês Passado')">Mês Passado</div>
-                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Últimos 3 Meses')">Últimos 3 Meses</div>
-                        <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Este Ano')">Este Ano</div>
-                        <div class="filter-custom-date">
-                            <h4>Personalizado</h4>
-                            <div class="date-range-inputs">
-                                <div class="date-input-group">
-                                    <label>Início</label>
-                                    <input type="date" id="dataInicioFiltro">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" class="btn btn-dark-action" onclick="renderizarTudo();"><i class="fas fa-sync-alt"></i> Atualizar</button>
+
+                    <!-- FILTRO DE PERÍODO GLOBAL -->
+                    <div class="modern-filter-container">
+                        <button class="modern-filter-btn" onclick="toggleDateFilter()">
+                            <i class="far fa-calendar-alt"></i>
+                            <span id="currentPeriodText">Todos os Registros</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div id="dateFilterDropdown" class="modern-filter-dropdown">
+                            <div id="opt-todos" class="filter-option active-filter" onclick="selectPredefinedPeriod(this, 'Todos os Registros')">Todos os Registros</div>
+                            <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Este Mês')">Este Mês</div>
+                            <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Mês Passado')">Mês Passado</div>
+                            <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Últimos 3 Meses')">Últimos 3 Meses</div>
+                            <div class="filter-option" onclick="selectPredefinedPeriod(this, 'Este Ano')">Este Ano</div>
+                            <div class="filter-custom-date">
+                                <h4>Personalizado</h4>
+                                <div class="date-range-inputs">
+                                    <div class="date-input-group">
+                                        <label>Início</label>
+                                        <input type="date" id="dataInicioFiltro">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label>Fim</label>
+                                        <input type="date" id="dataFimFiltro">
+                                    </div>
                                 </div>
-                                <div class="date-input-group">
-                                    <label>Fim</label>
-                                    <input type="date" id="dataFimFiltro">
+                                <div class="filter-actions">
+                                    <button class="btn-filter btn-apply" onclick="aplicarFiltroPersonalizado()">Aplicar</button>
+                                    <button class="btn-filter btn-clear" onclick="limparFiltro()">Limpar</button>
                                 </div>
-                            </div>
-                            <div class="filter-actions">
-                                <button class="btn-filter btn-apply" onclick="aplicarFiltroPersonalizado()">Aplicar</button>
-                                <button class="btn-filter btn-clear" onclick="limparFiltro()">Limpar</button>
                             </div>
                         </div>
                     </div>
@@ -195,7 +199,7 @@
                         <div class="panel-actions">
                             <div class="search-box">
                                 <i class="fas fa-search"></i>
-                                <input type="text" id="searchPagar" class="form-control" placeholder="Buscar fornecedor, descrição..." onkeyup="renderizarContasPagar()">
+                                <input type="text" id="searchPagar" class="form-control" placeholder="Buscar recebedor / empresa..." onkeyup="renderizarContasPagar()">
                             </div>
                             <select id="filterStatusPagar" class="filter-select" onchange="renderizarContasPagar()">
                                 <option value="todos">Todos os Status</option>
@@ -203,20 +207,29 @@
                                 <option value="pago">Pago</option>
                                 <option value="atrasado">Atrasado</option>
                             </select>
+                            <select id="filterCcPagar" class="filter-select" onchange="renderizarContasPagar()">
+                                <option value="todos">Todos os C. Custos</option>
+                                <option value="Custos Fixos">Custos Fixos</option>
+                                <option value="Peças Novas">Peças Novas</option>
+                                <option value="Administrativo">Administrativo</option>
+                                <option value="Pessoal">Pessoal</option>
+                            </select>
                         </div>
-                        <button class="btn btn-primary" onclick="abrirModalSaida()"><i class="fas fa-plus"></i> Nova Conta a Pagar</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-warning-action" onclick="gerarDespesasFixasMesAtual()"><i class="fas fa-bolt"></i> Gerar Fixas do Mês</button>
+                            <button class="btn btn-danger-action" onclick="abrirModalSaida()"><i class="fas fa-plus"></i> Nova Conta a Pagar</button>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Vencimento</th>
-                                    <th>Fornecedor</th>
+                                    <th>Recebedor / Empresa</th>
                                     <th>Descrição</th>
                                     <th>Valor</th>
-                                    <th>Categoria</th>
                                     <th>Status</th>
-                                    <th>Data Pagamento</th>
+                                    <th>Centro Custo</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -233,7 +246,7 @@
                         <div class="panel-actions">
                             <div class="search-box">
                                 <i class="fas fa-search"></i>
-                                <input type="text" id="searchReceber" class="form-control" placeholder="Buscar cliente, descrição..." onkeyup="renderizarContasReceber()">
+                                <input type="text" id="searchReceber" class="form-control" placeholder="Buscar cliente..." onkeyup="renderizarContasReceber()">
                             </div>
                             <select id="filterStatusReceber" class="filter-select" onchange="renderizarContasReceber()">
                                 <option value="todos">Todos os Status</option>
@@ -241,8 +254,15 @@
                                 <option value="pago">Pago</option>
                                 <option value="atrasado">Atrasado</option>
                             </select>
+                            <select id="filterCcReceber" class="filter-select" onchange="renderizarContasReceber()">
+                                <option value="todos">Todos os C. Custos</option>
+                                <option value="Reparos">Reparos</option>
+                                <option value="Peças Novas">Peças Novas</option>
+                                <option value="Serviços">Serviços</option>
+                                <option value="Vendas">Vendas</option>
+                            </select>
                         </div>
-                        <button class="btn btn-primary" onclick="abrirModalEntrada()"><i class="fas fa-plus"></i> Nova Conta a Receber</button>
+                        <button class="btn btn-success-action" onclick="abrirModalEntrada()"><i class="fas fa-plus"></i> Nova Conta a Receber</button>
                     </div>
                     <div class="table-responsive">
                         <table>
@@ -252,9 +272,8 @@
                                     <th>Cliente</th>
                                     <th>Descrição</th>
                                     <th>Valor</th>
-                                    <th>Categoria</th>
                                     <th>Status</th>
-                                    <th>Data Pagamento</th>
+                                    <th>Centro Custo</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -266,54 +285,32 @@
 
             <!-- ABA ESTOQUE -->
             <section id="tab-estoque" class="tab-content">
-                <div class="cards-grid">
-                    <div class="card stock">
-                        <div class="card-info">
-                            <h3>Total Investido em Peças</h3>
-                            <h2 id="stkPatrimonioTotal">R$ 0,00</h2>
-                        </div>
-                    </div>
-                    <div class="card balance">
-                        <div class="card-info">
-                            <h3>Total de SKUs</h3>
-                            <h2 id="stkTotalSkus">0</h2>
-                        </div>
-                    </div>
-                    <div class="card expense">
-                        <div class="card-info">
-                            <h3>Itens em Alerta / Zerados</h3>
-                            <h2 id="stkTotalAlertas">0</h2>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="panel">
                     <div class="panel-header">
                         <div class="panel-actions">
                             <div class="search-box">
                                 <i class="fas fa-search"></i>
-                                <input type="text" id="searchEstoque" class="form-control" placeholder="Buscar por SKU ou Nome..." onkeyup="renderizarEstoque()">
+                                <input type="text" id="searchEstoque" class="form-control" placeholder="Buscar peça / SKU..." onkeyup="renderizarEstoque()">
                             </div>
                             <select id="filterAlertaEstoque" class="filter-select" onchange="renderizarEstoque()">
-                                <option value="todos">Todos os Produtos</option>
-                                <option value="alerta">Em Alerta de Estoque</option>
+                                <option value="todos">Todos os Níveis</option>
+                                <option value="alerta">Estoque Baixo / Crítico</option>
                                 <option value="zerado">Esgotados (Qtd 0)</option>
                             </select>
                         </div>
-                        <button class="btn btn-primary" onclick="abrirModalProduto()"><i class="fas fa-plus"></i> Cadastrar Peça/Item</button>
+                        <button class="btn btn-primary-action" onclick="abrirModalProduto()"><i class="fas fa-box-open"></i> Cadastrar Peça</button>
                     </div>
                     <div class="table-responsive">
                         <table>
                             <thead>
                                 <tr>
                                     <th>SKU</th>
-                                    <th>Nome do Item</th>
+                                    <th>Peça</th>
                                     <th>Categoria</th>
                                     <th>Qtd Atual</th>
-                                    <th>Qtd Mín.</th>
-                                    <th>Custo Un.</th>
-                                    <th>Venda Un.</th>
-                                    <th>Margem</th>
+                                    <th>Qtd Mínima</th>
+                                    <th>Preço Custo</th>
+                                    <th>Preço Venda</th>
                                     <th>Subtotal Custo</th>
                                     <th>Ações</th>
                                 </tr>
@@ -328,8 +325,8 @@
             <section id="tab-dre" class="tab-content">
                 <div class="panel">
                     <div class="panel-header">
-                        <div class="panel-title"><i class="fas fa-file-alt"></i> DRE - Demonstrativo do Resultado do Exercício</div>
-                        <span class="badge badge-accent" id="drePeriodoText">Todos os Registros</span>
+                        <div class="panel-title"><i class="fas fa-file-alt"></i> Demonstrativo do Resultado do Exercício (DRE Dual)</div>
+                        <span class="status-pill status-pago" id="dreHealthBadge"><i class="fas fa-check-circle"></i> Operação Lucrativa</span>
                     </div>
                     <div class="dre-container">
                         <div class="dre-row highlight-bold">
@@ -359,10 +356,9 @@
                 </div>
             </section>
 
-            <!-- ABA INTEGRAÇÕES / EXCEL (IGUAL AO PRINT) -->
+            <!-- ABA INTEGRAÇÕES / EXCEL -->
             <section id="tab-extensao" class="tab-content">
                 <div class="dashboard-grid">
-                    <!-- PAINEL DA ESQUERDA: IMPORTAÇÃO EXCEL -->
                     <div class="panel">
                         <div class="panel-header">
                             <div class="panel-title"><i class="fas fa-file-excel text-success"></i> Importação de Planilha Excel (.xlsx)</div>
@@ -385,23 +381,22 @@
                         </p>
                     </div>
 
-                    <!-- PAINEL DA DIREITA: BACKUP & EXPORTAÇÃO MANUAL -->
                     <div class="panel">
                         <div class="panel-header">
                             <div class="panel-title"><i class="fas fa-database"></i> Backup & Exportação Manual</div>
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 12px;">
-                            <button class="btn btn-secondary btn-full" onclick="exportarBackupJSON()">
+                            <button class="btn btn-dark-full" onclick="exportarBackupJSON()">
                                 <i class="fas fa-download"></i> Baixar Backup do Sistema (JSON)
                             </button>
-                            <label class="btn btn-primary btn-full" style="text-align:center; cursor:pointer;">
+                            <label class="btn btn-yellow-full" style="text-align:center; cursor:pointer;">
                                 <i class="fas fa-upload"></i> Restaurar Backup JSON
                                 <input type="file" accept=".json" style="display:none;" onchange="importarBackupJSON(event)">
                             </label>
-                            <button class="btn btn-success btn-full" onclick="exportarCSV('pagar')">
+                            <button class="btn btn-green-full" onclick="exportarCSV('pagar')">
                                 <i class="fas fa-file-csv"></i> Exportar Contas a Pagar (CSV)
                             </button>
-                            <button class="btn btn-success btn-full" onclick="exportarCSV('receber')">
+                            <button class="btn btn-green-full" onclick="exportarCSV('receber')">
                                 <i class="fas fa-file-csv"></i> Exportar Contas a Receber (CSV)
                             </button>
                         </div>
@@ -412,7 +407,6 @@
     </div>
 
     <!-- MODAIS ESTRUTURADOS -->
-    <!-- Modal Saída (A Pagar) -->
     <div id="modalSaida" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalSaida')">&times;</span>
@@ -421,7 +415,7 @@
                 <input type="hidden" id="pagId">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label class="form-label">Fornecedor / Empresa</label>
+                        <label class="form-label">Recebedor / Empresa</label>
                         <input type="text" id="pagFornecedor" class="form-control" required placeholder="Ex: RGE Energia">
                     </div>
                     <div class="form-group">
@@ -468,13 +462,12 @@
                 </div>
                 <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
                     <button type="button" class="btn btn-secondary" onclick="fecharModal('modalSaida')">Cancelar</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Registro</button>
+                    <button type="submit" class="btn btn-primary-action"><i class="fas fa-save"></i> Salvar Registro</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal Entrada (A Receber) -->
     <div id="modalEntrada" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalEntrada')">&times;</span>
@@ -530,13 +523,12 @@
                 </div>
                 <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
                     <button type="button" class="btn btn-secondary" onclick="fecharModal('modalEntrada')">Cancelar</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Registro</button>
+                    <button type="submit" class="btn btn-primary-action"><i class="fas fa-save"></i> Salvar Registro</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal Produto/Estoque -->
     <div id="modalProduto" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalProduto')">&times;</span>
@@ -575,13 +567,12 @@
                 </div>
                 <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
                     <button type="button" class="btn btn-secondary" onclick="fecharModal('modalProduto')">Cancelar</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Produto</button>
+                    <button type="submit" class="btn btn-primary-action"><i class="fas fa-save"></i> Salvar Produto</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal Movimentação de Estoque -->
     <div id="modalMovimentacao" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="fecharModal('modalMovimentacao')">&times;</span>
@@ -602,13 +593,12 @@
                 </div>
                 <div class="mt-20" style="display: flex; gap: 10px; justify-content: flex-end;">
                     <button type="button" class="btn btn-secondary" onclick="fecharModal('modalMovimentacao')">Cancelar</button>
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Confirmar Movimentação</button>
+                    <button type="submit" class="btn btn-primary-action"><i class="fas fa-check"></i> Confirmar Movimentação</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL DO SISTEMA -->
     <script src="script.js"></script>
 </body>
 </html>
