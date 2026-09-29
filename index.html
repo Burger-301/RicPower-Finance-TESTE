@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RICPOWER FINANCE</title>
+
     <!-- ÍCONE DO SISTEMA (FAVICON) -->
     <link rel="icon" type="image/png" href="ico.png">
     
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Bibliotecas externas -->
+
+    <!-- Bibliotecas Externas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -61,10 +63,10 @@
                 </nav>
             </div>
             <div class="sidebar-footer">
-                <div style="text-align: center; font-size: 11px; color: #888; margin-bottom: 12px;">
+                <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+                <div style="text-align: center; font-size: 11px; color: #888; margin-top: 12px;">
                     Powered by <strong style="color: var(--accent-color);">CS Code Solutions</strong>
                 </div>
-                <button class="btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
             </div>
         </aside>
 
@@ -75,7 +77,7 @@
                     <div class="subtitle">Sistema de Gestão Richard Finance</div>
                 </div>
 
-                <!-- FILTRO DE PERÍODO -->
+                <!-- FILTRO DE PERÍODO GLOBAL -->
                 <div class="modern-filter-container">
                     <button class="modern-filter-btn" onclick="toggleDateFilter()">
                         <i class="far fa-calendar-alt"></i>
@@ -357,15 +359,16 @@
                 </div>
             </section>
 
-            <!-- ABA INTEGRAÇÕES E IMPORTAÇÃO EXCEL -->
+            <!-- ABA INTEGRAÇÕES / EXCEL (IGUAL AO PRINT) -->
             <section id="tab-extensao" class="tab-content">
                 <div class="dashboard-grid">
+                    <!-- PAINEL DA ESQUERDA: IMPORTAÇÃO EXCEL -->
                     <div class="panel">
                         <div class="panel-header">
                             <div class="panel-title"><i class="fas fa-file-excel text-success"></i> Importação de Planilha Excel (.xlsx)</div>
                         </div>
                         <div class="form-group mb-15">
-                            <label class="form-label">Limite de Importação</label>
+                            <label class="form-label">LIMITE DE IMPORTAÇÃO</label>
                             <select id="excelImportLimit" class="form-control">
                                 <option value="ALL">Toda a planilha (Todos os registros)</option>
                                 <option value="50">Últimos 50 registros</option>
@@ -374,25 +377,33 @@
                             </select>
                         </div>
                         <div class="form-group mb-15">
-                            <label class="form-label">Selecione o arquivo Excel</label>
+                            <label class="form-label">SELECIONE O ARQUIVO EXCEL</label>
                             <input type="file" id="fileExcelInput" class="form-control" accept=".xlsx, .xls" onchange="importarPlanilhaExcel(event)">
                         </div>
-                        <p class="subtitle"><i class="fas fa-info-circle"></i> O leitor automático processa abas nomeadas como "PAGAR/SAIDA" e "RECEBER/ENTRADA".</p>
+                        <p class="subtitle" style="font-size: 12px; color: #777;">
+                            <i class="fas fa-info-circle"></i> O leitor automático processa abas nomeadas como "PAGAR/SAIDA" e "RECEBER/ENTRADA".
+                        </p>
                     </div>
 
+                    <!-- PAINEL DA DIREITA: BACKUP & EXPORTAÇÃO MANUAL -->
                     <div class="panel">
                         <div class="panel-header">
                             <div class="panel-title"><i class="fas fa-database"></i> Backup & Exportação Manual</div>
                         </div>
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <button class="btn btn-secondary btn-full" onclick="exportarBackupJSON()"><i class="fas fa-download"></i> Baixar Backup do Sistema (JSON)</button>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button class="btn btn-secondary btn-full" onclick="exportarBackupJSON()">
+                                <i class="fas fa-download"></i> Baixar Backup do Sistema (JSON)
+                            </button>
                             <label class="btn btn-primary btn-full" style="text-align:center; cursor:pointer;">
                                 <i class="fas fa-upload"></i> Restaurar Backup JSON
                                 <input type="file" accept=".json" style="display:none;" onchange="importarBackupJSON(event)">
                             </label>
-                            <hr style="border: 0; border-top: 1px solid #eee; margin: 5px 0;">
-                            <button class="btn btn-success btn-full" onclick="exportarCSV('pagar')"><i class="fas fa-file-csv"></i> Exportar Contas a Pagar (CSV)</button>
-                            <button class="btn btn-success btn-full" onclick="exportarCSV('receber')"><i class="fas fa-file-csv"></i> Exportar Contas a Receber (CSV)</button>
+                            <button class="btn btn-success btn-full" onclick="exportarCSV('pagar')">
+                                <i class="fas fa-file-csv"></i> Exportar Contas a Pagar (CSV)
+                            </button>
+                            <button class="btn btn-success btn-full" onclick="exportarCSV('receber')">
+                                <i class="fas fa-file-csv"></i> Exportar Contas a Receber (CSV)
+                            </button>
                         </div>
                     </div>
                 </div>
