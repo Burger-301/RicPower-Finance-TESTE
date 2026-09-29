@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RICPOWER FINANCE</title>
+    <!-- ÍCONE DO SISTEMA (FAVICON) -->
+    <link rel="icon" type="image/png" href="ico.png">
+    
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Bibliotecas externas -->
@@ -18,7 +21,7 @@
     <div id="loginScreen" class="login-container">
         <div class="login-card">
             <div class="login-logo">
-                <div class="login-logo-text"><i class="fas fa-bolt"></i> RICPOWER</div>
+                <img src="logo.png" alt="RICPOWER Finance" class="login-logo-img">
             </div>
             <p class="login-subtitle">Gestão Financeira & Controle de Estoque</p>
             <div id="loginAlert" class="login-alert" style="display:none;"></div>
@@ -46,7 +49,7 @@
         <aside class="sidebar">
             <div>
                 <div class="logo">
-                    <div class="sidebar-logo-text"><i class="fas fa-bolt"></i> <span>RICPOWER</span></div>
+                    <img src="logo.png" alt="RICPOWER Finance" class="sidebar-logo-img">
                 </div>
                 <nav class="sidebar-nav">
                     <a class="nav-link active" onclick="showTab('dashboard', this)"><i class="fas fa-chart-line"></i> <span>Dashboard</span></a>
@@ -397,7 +400,7 @@
         </main>
     </div>
 
-    <!-- MODAIS ESTRUTURADOS COM AÇÕES CLARAS -->
+    <!-- MODAIS ESTRUTURADOS -->
     <!-- Modal Saída (A Pagar) -->
     <div id="modalSaida" class="modal">
         <div class="modal-content">
