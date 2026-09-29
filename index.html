@@ -533,7 +533,6 @@
                     Visão unificada entre o <strong>Regime de Caixa (Realizado)</strong> e o <strong>Regime de Competência (Projetado Total)</strong>.
                 </p>
 
-                <!-- TABELA DE DRE COMPARATIVA LADO A LADO -->
                 <div class="table-responsive">
                     <table>
                         <thead>
@@ -598,7 +597,7 @@
             <div class="panel">
                 <div class="panel-header"><h3 class="panel-title"><i class="fas fa-database"></i> Backup & Importação de Dados</h3></div>
                 <p style="margin-bottom: 20px; color: #666; font-size: 14px;">
-                    Importe sua planilha do Excel com Contas a Pagar e Contas a Receber, baixe uma cópia de segurança completa ou restaure arquivos JSON salvos. Os dados novos serão acrescentados mantendo os existentes salvos.
+                    Importe sua planilha do Excel com Contas a Pagar e Contas a Receber. Os novos lançamentos serão acrescentados sem apagar os dados existentes.
                 </p>
                 
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 25px; align-items: center;">
@@ -613,15 +612,16 @@
                         </select>
                     </div>
 
-                    <label class="btn btn-excel" style="cursor: pointer; font-size: 13px; padding: 10px 18px;">
+                    <!-- BOTÃO DE IMPORTAÇÃO CONECTADO VIA FOR COM RESET NO CLICK -->
+                    <label for="importExcelFile" class="btn btn-excel" style="cursor: pointer; font-size: 13px; padding: 10px 18px;">
                         <i class="fas fa-file-excel" style="font-size: 16px;"></i> Importar Planilha Excel (.xlsx)
-                        <input type="file" id="importExcelFile" accept=".xlsx, .xls" onchange="importarPlanilhaExcel(event)" style="display: none;">
                     </label>
+                    <input type="file" id="importExcelFile" accept=".xlsx, .xls" onclick="this.value=null;" onchange="importarPlanilhaExcel(event)" style="display: none;">
 
                     <button class="btn btn-primary" onclick="exportarBackupJSON()"><i class="fas fa-download"></i> Baixar Backup Completo (JSON)</button>
                     <label class="btn btn-success" style="cursor: pointer;">
                         <i class="fas fa-upload"></i> Restaurar Backup (JSON)
-                        <input type="file" id="importFile" accept=".json" onchange="importarBackupJSON(event)" style="display: none;">
+                        <input type="file" id="importFile" accept=".json" onclick="this.value=null;" onchange="importarBackupJSON(event)" style="display: none;">
                     </label>
                 </div>
 
@@ -724,13 +724,11 @@
 
     <!-- SCRIPT COMPLETO DE LÓGICA DO SISTEMA -->
     <script>
-        // TOGGLE SIDEBAR MOBILE
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
             document.querySelector('.sidebar-overlay').classList.toggle('active');
         }
 
-        // CONFIGURAÇÃO REAL DO PROJETO FIREBASE (RICPOWER-FINANCE-4312B)
         const firebaseConfig = {
             apiKey: "AIzaSyAMIo-e1IQVvoVNvHfjyCvQ3mpmA8XpEZU",
             authDomain: "ricpower-finance-4312b.firebaseapp.com",
@@ -744,7 +742,6 @@
         let db = null;
         let isFirebaseConnected = false;
 
-        // INICIALIZAÇÃO FIREBASE
         try {
             if (firebaseConfig.apiKey) {
                 firebase.initializeApp(firebaseConfig);
@@ -755,19 +752,16 @@
             console.warn("Firebase operando em modo local por padrão.", e);
         }
 
-        // ESTADO GLOBAL DA APLICAÇÃO
         let dbPagar = [];
         let dbReceber = [];
         let dbEstoque = [];
 
-        // FILTRAGEM GLOBAL DE DATAS
         let filtroPeriodoGlobal = 'todos';
         let dtInicioCustom = null;
         let dtFimCustom = null;
 
         let chartFluxo, chartCat;
 
-        // INICIALIZAÇÃO DE DADOS AO CARREGAR A PÁGINA
         window.onload = function() {
             if (localStorage.getItem('ric_logged') === 'true') {
                 document.getElementById('login-screen').style.display = 'none';
@@ -802,7 +796,6 @@
             }
         };
 
-        // LOGIN / LOGOUT
         function realizarLogin(e) {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
@@ -820,7 +813,6 @@
             document.getElementById('login-screen').style.display = 'flex';
         }
 
-        // CONTROLADOR DE ABAS
         function trocarAba(abaId, el) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
@@ -833,10 +825,8 @@
             }
         }
 
-        // FORMATADOR DE MOEDA
         const fmt = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-        // AUXILIAR DE FILTRAGEM POR DATA
         function filtrarPorPeriodo(item) {
             if (!item || !item.venc) return true;
             if (filtroPeriodoGlobal === 'todos') return true;
@@ -862,7 +852,6 @@
             return true;
         }
 
-        // CARREGAR E RENDERIZAR MÉTRICAS
         function carregarDados() {
             if (!isFirebaseConnected) {
                 localStorage.setItem('ric_pagar', JSON.stringify(dbPagar));
@@ -905,7 +894,6 @@
             }
         }
 
-        // CÁLCULO DRE DUAL
         function atualizarDREDual(pagarList = dbPagar, receberList = dbReceber) {
             let recReal = receberList.filter(x => x.status === 'PAGO').reduce((a,b) => a + Number(b.valor), 0);
             let recPend = receberList.filter(x => x.status !== 'PAGO').reduce((a,b) => a + Number(b.valor), 0);
@@ -974,9 +962,7 @@
             }
         }
 
-        // RENDERIZAÇÃO DAS TABELAS
         function renderTabelas(pagarList = dbPagar, receberList = dbReceber) {
-            // Dashboard Vencimentos
             let tbVenc = document.getElementById('tbProximosVencimentos');
             tbVenc.innerHTML = '';
             [...pagarList, ...receberList].sort((a,b) => new Date(a.venc) - new Date(b.venc)).slice(0, 5).forEach(item => {
@@ -993,7 +979,6 @@
                 `;
             });
 
-            // Contas a Pagar
             let buscaP = (document.getElementById('buscaPagar')?.value || '').toLowerCase();
             let statusP = document.getElementById('filtroStatusPagar')?.value || 'TODOS';
             let ccP = document.getElementById('filtroCCPagar')?.value || 'TODOS';
@@ -1029,7 +1014,6 @@
                 `;
             });
 
-            // Contas a Receber
             let buscaR = (document.getElementById('buscaReceber')?.value || '').toLowerCase();
             let statusR = document.getElementById('filtroStatusReceber')?.value || 'TODOS';
             let ccR = document.getElementById('filtroCCReceber')?.value || 'TODOS';
@@ -1064,7 +1048,6 @@
                 `;
             });
 
-            // Estoque
             let buscaE = (document.getElementById('buscaEstoque')?.value || '').toLowerCase();
             let statusE = document.getElementById('filtroStatusEstoque')?.value || 'TODOS';
 
@@ -1100,7 +1083,6 @@
             });
         }
 
-        // GRÁFICOS DINÂMICOS
         function renderGraficos(realIn, realOut, catPessoal = 0, catAdmin = 0, catPecas = 0) {
             const ctxFluxo = document.getElementById('chartFluxoCaixa').getContext('2d');
             if (chartFluxo) chartFluxo.destroy();
@@ -1132,7 +1114,6 @@
             });
         }
 
-        // OPERAÇÕES DE BANCO DE DADOS (CRUD)
         function salvarPagar(e) {
             e.preventDefault();
             let id = document.getElementById('pagarId').value || String(Date.now());
@@ -1245,7 +1226,6 @@
             }
         }
 
-        // AUTOMATIZAÇÃO DE DESPESAS FIXAS
         function gerarDespesasFixasMesAtual(silencioso = false) {
             const hoje = new Date();
             const anoAtual = hoje.getFullYear();
@@ -1297,12 +1277,18 @@
             }
         }
 
-        // IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) OTIMIZADA E RESISTENTE A FALHAS
+        // IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) OTIMIZADA E RESISTENTE A ERROS
         function importarPlanilhaExcel(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            const limitValue = document.getElementById('excelImportLimit') ? document.getElementById('excelImportLimit').value : 'ALL';
+            if (typeof XLSX === 'undefined') {
+                alert('A biblioteca de leitura de Excel não carregou. Verifique sua conexão ou recarregue a página.');
+                return;
+            }
+
+            const limitSelect = document.getElementById('excelImportLimit');
+            const limitValue = limitSelect ? limitSelect.value : 'ALL';
 
             const reader = new FileReader();
             reader.onload = function(evt) {
@@ -1313,7 +1299,6 @@
                     let pagarEncontrados = [];
                     let receberEncontrados = [];
 
-                    // Converte valores numéricos e moedas
                     function parseValor(rawValor) {
                         if (rawValor === undefined || rawValor === null || rawValor === '') return 0;
                         if (typeof rawValor === 'number') return rawValor;
@@ -1331,7 +1316,6 @@
                         return isNaN(num) ? 0 : num;
                     }
 
-                    // Converte datas removendo horas e minutos
                     function parseExcelDate(val) {
                         if (!val) return new Date().toISOString().slice(0, 10);
                         
@@ -1340,20 +1324,6 @@
                             const m = String(val.getUTCMonth() + 1).padStart(2, '0');
                             const d = String(val.getUTCDate()).padStart(2, '0');
                             return `${y}-${m}-${d}`;
-                        }
-
-                        if (typeof val === 'number') {
-                            if (typeof XLSX !== 'undefined' && XLSX.SSF) {
-                                try {
-                                    const dateObj = XLSX.SSF.parse_date_code(val);
-                                    if (dateObj) {
-                                        const y = dateObj.y;
-                                        const m = String(dateObj.m).padStart(2, '0');
-                                        const d = String(dateObj.d).padStart(2, '0');
-                                        return `${y}-${m}-${d}`;
-                                    }
-                                } catch(err) {}
-                            }
                         }
 
                         let str = String(val).trim();
@@ -1446,7 +1416,6 @@
                                 let cc = 'ADMINISTRATIVO';
                                 if (rawCC.includes('PESS')) cc = 'PESSOAL';
                                 else if (rawCC.includes('PEÇ') || rawCC.includes('PEC')) cc = 'PEÇAS';
-                                else if (rawCC.includes('ADMIN')) cc = 'ADMINISTRATIVO';
 
                                 pagarEncontrados.push({
                                     fornecedor: fornecedor,
@@ -1526,15 +1495,11 @@
                     // 3. Aplicar Filtro de Limite de Registros
                     if (limitValue !== 'ALL') {
                         const lim = parseInt(limitValue, 10);
-                        if (pagarEncontrados.length > lim) {
-                            pagarEncontrados = pagarEncontrados.slice(-lim);
-                        }
-                        if (receberEncontrados.length > lim) {
-                            receberEncontrados = receberEncontrados.slice(-lim);
-                        }
+                        if (pagarEncontrados.length > lim) pagarEncontrados = pagarEncontrados.slice(-lim);
+                        if (receberEncontrados.length > lim) receberEncontrados = receberEncontrados.slice(-lim);
                     }
 
-                    // 4. Salvar Adicionando aos Lançamentos Existentes
+                    // 4. Inserir Dados sem apagar o histórico
                     let countPagar = 0;
                     let countReceber = 0;
 
@@ -1559,20 +1524,18 @@
                     });
 
                     carregarDados();
-                    e.target.value = '';
-
+                    
                     const txtModo = limitValue === 'ALL' ? 'Toda a planilha' : `Últimos ${limitValue} registros`;
-                    alert(`Importação concluída com sucesso (${txtModo})!\n\n• Contas a Pagar importadas: ${countPagar}\n• Contas a Receber importadas: ${countReceber}\n\n* Os lançamentos que já existiam no sistema foram mantidos salvos.`);
+                    alert(`Importação concluída com sucesso (${txtModo})!\n\n• Contas a Pagar importadas: ${countPagar}\n• Contas a Receber importadas: ${countReceber}`);
 
                 } catch (err) {
                     console.error('Erro ao ler a planilha Excel:', err);
-                    alert('Erro ao processar o arquivo de planilha. Verifique se o arquivo está no formato .xlsx válido.');
+                    alert('Erro ao processar a planilha: ' + err.message);
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // CONTROLADORES DE MODAL
         function abrirModalPagar() { 
             document.getElementById('pagarId').value = ''; 
             document.getElementById('pagarFornecedor').value = '';
@@ -1680,7 +1643,6 @@
             fecharModal('modalMovimentar');
         }
 
-        // BACKUP JSON E EXPORTAÇÃO CSV
         function exportarBackupJSON() {
             const backupData = { dbPagar, dbReceber, dbEstoque, exportDate: new Date().toISOString() };
             const jsonStr = JSON.stringify(backupData, null, 2);
@@ -1736,7 +1698,6 @@
             document.body.removeChild(link);
         }
 
-        // UTILS
         function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
         function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
         function toggleDateFilter() { document.getElementById('dateFilterDropdown').classList.toggle('show'); }
