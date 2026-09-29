@@ -1,4 +1,4 @@
-// 1. CONFIGURAÇÃO OFICIAL DO FIREBASE COM REALTIME DATABASE
+// CONFIGURAÇÃO DO FIREBASE COM REALTIME DATABASE
 const firebaseConfig = {
   apiKey: "AIzaSyAMIo-e1IQVvoVNvHfjyCvQ3mpmA8XpEZU",
   authDomain: "ricpower-finance-4312b.firebaseapp.com",
@@ -9,13 +9,11 @@ const firebaseConfig = {
   appId: "1:632169254200:web:776e49224d4f61bc2e05cd"
 };
 
-// Inicialização da base de dados Firebase
 if (typeof firebase !== 'undefined' && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 const db = (typeof firebase !== 'undefined') ? firebase.database() : null;
 
-// CONVERTE OBJETOS FIREBASE OU DADOS LOCAIS EM ARRAYS VÁLIDOS
 function garantirArray(val) {
     if (!val) return [];
     if (Array.isArray(val)) return val.filter(item => item !== null && item !== undefined);
@@ -23,21 +21,18 @@ function garantirArray(val) {
     return [];
 }
 
-// PARSER UNIVERSAL DE DATA (EVITA 'INVALID DATE' EM QUALQUER FORMATO)
 function parseDateIso(dateStr) {
     if (!dateStr) return null;
     let s = String(dateStr).trim();
     if (s.includes(' ')) s = s.split(' ')[0];
     if (s.includes('T')) s = s.split('T')[0];
     
-    // Formato DD/MM/YYYY
     if (s.includes('/')) {
         let parts = s.split('/');
         if (parts.length === 3) {
             return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
         }
     }
-    // Formato YYYY-MM-DD
     if (s.includes('-')) {
         let parts = s.split('-');
         if (parts.length === 3) {
@@ -48,7 +43,6 @@ function parseDateIso(dateStr) {
     return isNaN(d.getTime()) ? null : d;
 }
 
-// HELPERS DE FORMATAÇÃO
 const getMesAtualStr = () => {
     const d = new Date();
     const y = d.getFullYear();
@@ -58,7 +52,6 @@ const getMesAtualStr = () => {
 
 const mesAtual = getMesAtualStr();
 
-// DADOS LOCAIS BASE
 let contasPagar = garantirArray(JSON.parse(localStorage.getItem('ricpower_pagar'))) || [
     { id: '1', vencimento: `${mesAtual}-15`, fornecedor: 'RGE Energia', descricao: 'Conta de Energia Elétrica', valor: 1000.00, categoria: 'Custos Fixos', status: 'PAGO', dataPagamento: `${mesAtual}-15`, tipoPagamento: 'PIX' },
     { id: '2', vencimento: `${mesAtual}-21`, fornecedor: 'AliExpress', descricao: 'Lote de Placas e Chips', valor: 850.00, categoria: 'Peças Novas', status: 'PENDENTE', dataPagamento: '', tipoPagamento: 'PIX' },
@@ -75,14 +68,12 @@ let estoque = garantirArray(JSON.parse(localStorage.getItem('ricpower_estoque'))
     { id: '2', sku: 'PEC-002', nome: 'Pasta Térmica Alta Condutividade', categoria: 'Insumos', qtd: 3, qtdMin: 5, precoCusto: 35.00, precoVenda: 90.00 }
 ];
 
-// INICIA EM 'Todos os Registros' PARA EXIBIR TUDO
 let filtroDataAtivo = 'Todos os Registros';
 let dataInicioCustom = '';
 let dataFimCustom = '';
 let fluxoCaixaChartInstance = null;
 let centroCustoChartInstance = null;
 
-// CÁLCULO DINÂMICO DE STATUS
 function getStatusEfetivo(item) {
     if (String(item.status).toUpperCase() === 'PAGO') return 'PAGO';
     const hoje = new Date();
@@ -92,7 +83,6 @@ function getStatusEfetivo(item) {
     return 'PENDENTE';
 }
 
-// ARMAZENAMENTO E NUVEM
 function salvarDadosLocal(skipNuvem = false) {
     contasPagar = garantirArray(contasPagar);
     contasReceber = garantirArray(contasReceber);
@@ -161,11 +151,6 @@ function realizarLogin(event) {
     }
 }
 
-function preencherLoginDemo() {
-    document.getElementById('loginEmail').value = 'admin@richard.com';
-    document.getElementById('loginSenha').value = 'admin123';
-}
-
 function logout() {
     localStorage.removeItem('ricpower_logged_user');
     document.getElementById('appScreen').style.display = 'none';
@@ -185,7 +170,6 @@ function verificarSessao() {
 function iniciarAplicacao() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'flex';
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('ricpower_logged_user') || 'admin@richard.com';
     escutarSincronizacaoNuvem();
     renderizarTudo();
 }
@@ -198,9 +182,7 @@ function showTab(tabId, navElement) {
     const selectedTab = document.getElementById(`tab-${tabId}`);
     if (selectedTab) selectedTab.classList.add('active');
 
-    if (navElement) {
-        navElement.classList.add('active');
-    }
+    if (navElement) navElement.classList.add('active');
 
     const titles = {
         'dashboard': 'Visão Geral Financeira',
@@ -813,7 +795,7 @@ function renderizarDRE() {
     document.getElementById('dreMargemLiquida').innerText = `${margemLiquida}%`;
 }
 
-/* IMPORTAÇÃO DE PLANILHA EXCEL (.XLSX) REATORADA PARA A ESTRUTURA DO SISTEMA */
+/* IMPORTAÇÃO EXCEL (.XLSX) */
 function importarPlanilhaExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -1027,14 +1009,12 @@ function importarPlanilhaExcel(e) {
                 }
             }
 
-            // 3. Aplicar Limite de Registros
             if (limitValue !== 'ALL') {
                 const lim = parseInt(limitValue, 10);
                 if (pagarEncontrados.length > lim) pagarEncontrados = pagarEncontrados.slice(-lim);
                 if (receberEncontrados.length > lim) receberEncontrados = receberEncontrados.slice(-lim);
             }
 
-            // 4. Salvar na memória local/nuvem
             contasPagar = [...garantirArray(contasPagar), ...pagarEncontrados];
             contasReceber = [...garantirArray(contasReceber), ...receberEncontrados];
 
