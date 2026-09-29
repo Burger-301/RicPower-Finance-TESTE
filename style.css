@@ -51,9 +51,8 @@ body {
     margin-bottom: 20px;
 }
 
-/* AUMENTADO: Logo na tela de login */
 .login-logo-img {
-    max-width: 280px; /* Aumentado de 220px para 280px */
+    max-width: 280px;
     width: 100%;
     height: auto;
     display: block;
@@ -130,9 +129,8 @@ body {
     text-align: center;
 }
 
-/* AUMENTADO: Logo na Sidebar / Menu lateral */
 .sidebar-logo-img {
-    max-height: 65px; /* Aumentado de 45px para 65px */
+    max-height: 65px;
     max-width: 90%;
     width: auto;
     display: block;
